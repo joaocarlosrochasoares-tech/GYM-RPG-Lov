@@ -66,7 +66,7 @@ let D={p:{},ss:[],cx:{},u:{}};
 try{D=Object.assign(D,JSON.parse(localStorage.getItem(KEY)||'{}'))}catch(e){}
 D.ss.forEach(s=>{if(LG[s.day])s.day=LG[s.day]});if(!D.p||!D.p.kg)D.p={kg:60,cm:165,age:28};
 const save=()=>{try{const h=dh();if(CL){if(CL.h==='')CL.h=h;else if(h!==CL.h){D.ts=Date.now();CL.h=h}}}catch(e){}saveLocal();cloudPush()};
-let V='h',day='Dia1',face='video',pe=0,rng=0,draft={},dv='',rs=0,ch=null,rch=null,pm0=1,CK=1;
+let V='h',day='Dia1',face='video',pe=0,rng=0,draft={},dv='',rs=0,ch=null,pm0=1,CK=1;
 const esc=s=>String(s).replace(/[&<>"']/g,c=>'&#'+c.charCodeAt(0)+';');
 const nz=s=>s.normalize('NFD').replace(/[̀-ͯ]/g,'').toLowerCase().trim();
 const mk=n=>{n=nz(n);return/^supino( reto)?$/.test(n)?'sup':/^agachamento( livre)?$/.test(n)?'agach':/^(deadlift|peso morto|levantamento terra)$/.test(n)?'dead':/(elevacao pelvica|hip ?(thrust|trust))/.test(n)?'hip':''};
@@ -96,7 +96,6 @@ const DAY=864e5,dnum=d=>Math.round(Date.parse(d)/DAY),wkn=n=>Math.floor((n+3)/7)
 function volE(e,kg){const c=cd(e.n);if(c&&c!==BW)return 0;const bw=c===BW?(+kg||+D.p.kg||0):0;return e.s.reduce((a,[w,r])=>a+(bw+(+w||0))*(+r||0),0)}
 
 const XA=30,XP2=2.8,XM=100,fx=n=>Math.round(n).toLocaleString('pt-PT'),CXP=L=>XA*(L-1)**XP2,LV=x=>Math.min(XM,Math.floor((x/XA)**(1/XP2)+1e-9)+1);
-/* Patamares de força relativa ajustados para perfil feminino (100% = Supino 1,2x, Agachamento 2,0x, Deadlift 2,25x, Elev. Pélvica 2,5x peso corporal) */
 const LT={sup:1.2,agach:2.0,dead:2.25,hip:2.5};
 const MET={'cardio (20/30min)':[8,(w,r)=>r],'prancha':[4,(w,r)=>r/60]};
 const MUL=n=>{n=nz(n);return/panturrilha|trapezio/.test(n)?.5:/extensora|abdutora|gluteo|pulldown|remada/.test(n)?.75:/lateral|rosca|tricep|bicep/.test(n)?.8:1};
@@ -196,50 +195,6 @@ const vAI=()=>`<div class="c space-y-2"><b class="text-[#39ff88]">Vídeos e imag
  <input id="xu" class="i" placeholder="URL (opcional)"><input type="file" accept="video/*,image/*" id="xf" class="text-xs">
  <div class="flex gap-2"><button class="b" onclick="ai()">Guardar</button><button class="g" onclick="ar()">Repor fase</button></div></div>`;
 
-/* ===== Gráfico Radar de Atributos do Herói ===== */
-function getHeroStats(s){
- const str=Math.round(Math.min(100,s.fs*100));
- const end=Math.round(Math.min(100,Math.max(s.lv*1.1,s.n*3)));
- const agi=Math.round(Math.min(100,Math.max(s.lv*1.05,(s.b.agach+s.b.hip)/.9)));
- const dex=Math.round(Math.min(100,Math.max(s.ms*3.5,s.lv)));
- const wil=Math.round(Math.min(100,Math.max(s.stk*8,s.wk*6,s.n>0?20:0)));
- return{str,end,agi,dex,wil};
-}
-function vRadar(s){
- const st=getHeroStats(s);
- const items=[['⚔️ STR','Força',st.str],['🫀 END','Resistência',st.end],['⚡ AGI','Explosão',st.agi],['🤸 DEX','Calistenia',st.dex],['🔥 WIL','Disciplina',st.wil]];
- return`<div class="c"><div class="flex justify-between items-center mb-2"><b class="text-[#39ff88]">📊 Radar de Atributos</b><span class="text-xs text-zinc-400">Escala 0–100</span></div>
-  <div class="relative h-60 w-full max-w-[320px] mx-auto"><canvas id="radCv"></canvas></div>
-  <div class="grid grid-cols-5 gap-1 mt-2 text-center">${items.map(([k,n,v])=>`<div class="rounded-lg bg-black/30 border border-white/10 p-1.5"><div class="text-[10px] text-zinc-400">${k}</div><div class="text-sm font-bold text-[#39ff88]">${v}</div><div class="text-[9px] text-zinc-500 truncate">${n}</div></div>`).join('')}</div></div>`;
-}
-function drawRadar(){
- const cv=$('#radCv');if(!cv||!window.Chart)return;
- if(rch){rch.destroy();rch=null}
- const st=getHeroStats(S());
- rch=new Chart(cv,{
-  type:'radar',
-  data:{
-   labels:['STR (Força)','END (Resistência)','AGI (Explosão)','DEX (Calistenia)','WIL (Disciplina)'],
-   datasets:[{
-    label:'Atributos',
-    data:[st.str,st.end,st.agi,st.dex,st.wil],
-    backgroundColor:'rgba(57, 255, 136, 0.22)',
-    borderColor:'#39ff88',
-    pointBackgroundColor:'#39ff88',
-    pointBorderColor:'#04210f',
-    pointHoverBackgroundColor:'#fff',
-    borderWidth:2,
-    pointRadius:3.5
-   }]
-  },
-  options:{
-   responsive:true,maintainAspectRatio:false,
-   scales:{r:{min:0,max:100,beginAtZero:true,angleLines:{color:'rgba(57,255,136,0.18)'},grid:{color:'rgba(255,255,255,0.1)'},pointLabels:{color:'#e8fff1',font:{family:'Chakra Petch',size:11,weight:'600'}},ticks:{display:false,stepSize:25}}},
-   plugins:{legend:{display:false}}
-  }
- });
-}
-
 /* Vistas */
 const DS=['Seg','Ter','Qua','Qui','Sex','Sáb','Dom'];
 const quando=g=>g==0?'hoje':g==1?'ontem':g<0?'data futura':`há ${g} dias`;
@@ -285,7 +240,6 @@ function vH0(){const s=S(),p=D.p,ne=RK2.find(x=>x[0]>s.lv),mx=s.lv>=XM,cur=CXP(s
   <div class="h-3.5 bg-white/10 rounded-full overflow-hidden mt-1"><div class="h-full rounded-full" style="width:${pr}%;background:linear-gradient(90deg,#1f9d55,#39ff88);box-shadow:0 0 14px #39ff88"></div></div>
   <div class="text-[11px] text-zinc-500 mt-1">${ne?`Faltam ${fx(r1-s.xp)} XP para a fase ${fase(ne[0])}`:'Fase final do avatar'}${rk[0]>1?` · margem antes de regredir de rank: ${fx(s.xp-r0)} XP`:''}</div>
  </div></div>
- ${vRadar(s)}
  <div class="grid grid-cols-2 gap-2">${Object.keys(L).map((k,i)=>`<div class="c"><div class="text-xl">${IC[i]}</div><div class="text-xs text-zinc-400">${L[k]} · 1RM</div><div class="text-2xl font-bold text-[#39ff88]">${s.b[k]?fm(s.b[k]):'—'}<span class="text-sm"> kg</span></div></div>`).join('')}</div>
  <p class="text-xs text-zinc-500">XP por treino = Σ(Peso × Repetições) ÷ 10. Nas flexões, abdominais e lombar o Peso é o peso corporal + lastro; o cardio ganha XP pelos minutos. 🔥 Streak: ${STK_META} dias de treino seguidos, com no máximo ${STK_GAP-1} dias de pausa (+5% XP).</p>`}
 function sp(){let kg=pn($('#kg').value),cm=pn($('#cm').value);if(cm&&cm<3)cm*=100;if(kg<30||kg>300||cm<100||cm>250)return toast('Verifica o peso (kg) e a altura (cm).');wInit();const k0=+D.p.kg;D.p={kg,cm,age:pn($('#ag').value)};if(kg!==k0)wSet(td(),kg);save();pe=0;R();toast('Perfil guardado')}
@@ -686,11 +640,11 @@ function renderHeroAura(){
  requestAnimationFrame(renderHeroAura);
 }
 
-function R(){if(ch){ch.destroy();ch=null}if(rch){rch.destroy();rch=null}
+function R(){if(ch){ch.destroy();ch=null}
  syncBgMode();
  const al=hasNotifAlert();
  $('#nav').innerHTML=[['h','⚔️ Herói'],['n','🔔 Notificações'+(al?' •':'')],['t','🏋️ Treino'],['x','📋 Histórico'],['r','📅 Resumo'],['g','📈 Evolução'],['c','🏆 Conquistas'],['d','💾 Dados']].map(([k,n])=>`<button onclick="V='${k}';R();scrollTo(0,0)" class="whitespace-nowrap px-3 py-2 rounded-lg text-sm ${V==k?'b':'g'}">${n}</button>`).join('');
- $('#m').innerHTML=({h:vH,n:vN,t:vT,x:vX,r:vR,g:vG,c:vC,d:vD})[V]();if(V=='g')dc();if(V=='h'){ap();drawRadar()}if(V=='t'){pm0=pmul();upd()}}
+ $('#m').innerHTML=({h:vH,n:vN,t:vT,x:vX,r:vR,g:vG,c:vC,d:vD})[V]();if(V=='g')dc();if(V=='h')ap();if(V=='t'){pm0=pmul();upd()}}
 function boot(){initAppBg();initHeroAura();wInit();try{const z=JSON.parse(localStorage.getItem('gymrpg-midina-draft')||'null');if(z){draft=z.draft||{};dv=z.dv||''}}catch(e){}srt();chk();
  save();R();onOpen();bkChk();rvChk();cloudInit();
  IDB.keys().then(ks=>{let n=0;(ks||[]).forEach(k=>{const[a,b]=String(k).split('|');if(b=='video'){VX.add(+a);delete VU[+a];n++}});if(n&&(V=='h'||V=='d'))R()}).catch(()=>{});
