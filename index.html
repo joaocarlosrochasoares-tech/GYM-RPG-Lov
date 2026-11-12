@@ -68,8 +68,18 @@ const RK2=[
 ];
 const stg=lv=>RK2.filter(x=>x[0]<=lv).pop(),rank=lv=>stg(lv)[1],fase=lv=>RK2.indexOf(stg(lv))+1;
 const EMB='embutido';
-const avatarVideos={1:EMB,11:EMB,21:EMB,31:EMB,41:EMB,51:EMB,61:EMB,71:EMB,81:EMB,91:EMB};
-let IM={};try{IM=JSON.parse(localStorage.getItem('gymrpg-midina-img')||'{}')}catch(e){}
+const avatarVideos = {
+  1:  'media/f1_video.mp4',
+  11: 'media/f2_video.mp4',
+  21: 'media/f3_video.mp4',
+  31: null,
+  41: null,
+  51: null,
+  61: null,
+  71: null,
+  81: null,
+  91: null
+};let IM={};try{IM=JSON.parse(localStorage.getItem('gymrpg-midina-img')||'{}')}catch(e){}
 let D={p:{},ss:[],cx:{},u:{}};
 try{D=Object.assign(D,JSON.parse(localStorage.getItem(KEY)||'{}'))}catch(e){}
 D.ss.forEach(s=>{if(LG[s.day])s.day=LG[s.day]});if(!D.p||!D.p.kg)D.p={kg:60,cm:165,age:28};
@@ -1028,6 +1038,23 @@ function boot(){initAppBg();initHeroAura();wInit();try{const z=JSON.parse(localS
  save();R();onOpen();bkChk();rvChk();cloudInit();duoPoll(true);
  IDB.keys().then(ks=>{let n=0;(ks||[]).forEach(k=>{const[a,b]=String(k).split('|');if(b=='video'){VX.add(+a);delete VU[+a];n++}});if(n&&(V=='h'||V=='d'))R()}).catch(()=>{});
  document.addEventListener('visibilitychange',()=>{if(!document.hidden)onOpen()})}
+</script>
+<script>
+/* Fases: 1 (Nv 1), 11 (Nv 11), 21 (Nv 21), 31 (Nv 31), 41 (Nv 41), 51 (Nv 51), 61 (Nv 61), 71 (Nv 71), 81 (Nv 81), 91 (Nv 91) */
+const avatarStages = {
+  1:  { frente: 'media/f1_frente.webp', costas: 'media/f1_costas.webp' },
+  11: { frente: 'media/f2_frente.webp', costas: 'media/f2_costas.webp' },
+  21: { frente: 'media/f3_frente.webp', costas: 'media/f3_costas.webp' },
+  31: { frente: 'media/f4_frente.webp', costas: 'media/f4_costas.webp' },
+  41: { frente: 'media/f5_frente.webp', costas: 'media/f5_costas.webp' },
+  51: { frente: 'media/f6_frente.webp', costas: 'media/f6_costas.webp' },
+  61: { frente: 'media/f7_frente.webp', costas: 'media/f7_costas.webp' },
+  71: { frente: 'media/f8_frente.jpg', costas: 'media/f8_costas.jpg' },
+  81: { frente: 'media/f9_frente.jpg', costas: 'media/f9_costas.jpg' },
+  91: { frente: 'media/f10_frente.jpg', costas: 'media/f10_costas.jpg' }
+};
+/* Deixa o VEMB vazio para o ficheiro não pesar */
+const VEMB = {};
 </script>
 <script>boot()</script>
 </body></html>
