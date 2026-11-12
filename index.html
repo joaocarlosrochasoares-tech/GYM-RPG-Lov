@@ -238,6 +238,7 @@ function hasNotifAlert(){try{const s=S();return !!(dlAct()||dlSug()||(s.gl!=null
 function vN(){
  const s=S(),b=dlBanner();
  return`<div class="c flex items-center justify-between"><b class="text-[#38bdf8]">🔔 Centro de Notificações &amp; Estado</b><span class="text-xs text-zinc-400">Streak, Descarga e Missões</span></div>`
+  +vDuo(s)
   +(b||`<div class="c text-xs text-zinc-400">🛌 <b class="text-[#e8f6ff]">Semana de descarga:</b> Sem descarga ativa ou sugerida de momento (recomendada a cada 4 a 6 semanas).</div>`)
   +vStk(s)+vMiss(s);
 }
@@ -302,6 +303,7 @@ function fin(){const dr=draft[day]||{},ex=[];
  if(!g){save();R();return toast('Esse treino já estava registado.')}
  if(typeof bgPulse==='function')bgPulse();
  if(typeof heroPulse==='function')heroPulse();
+ duoPushWorkout(ns,g,s1);
  toast(`Treino guardado! Volume ${fx(g.v)} kg → +${fx(g.x)} XP${g.m>1?' (🔥 +5% streak)':''}`);if(g.pr)toast('🏅 Novo recorde! +5% de XP neste treino');
  if(s1.lv>s0.lv)toast('⬆️ Nível '+s1.lv+'!');
  if(stg(s1.lv)[0]>stg(s0.lv)[0]){toast('🎉 Novo rank: '+s1.t+' — o avatar evoluiu para a fase '+fase(s1.lv)+'!');face='video'}
@@ -446,7 +448,7 @@ function vCloud(){const https=/^https:$/.test(location.protocol),lib=!!(window.g
  <input id="cu" ${IN} placeholder="123456-abc.apps.googleusercontent.com" value="${esc(okId?CLIENT_ID:'')}"><div class="flex gap-2 mt-2"><button class="b text-sm" onclick="cfgSave()">Guardar Client ID</button><button class="g text-sm" onclick="cfgClear()">Limpar</button></div></details></div>`}
 const hasBk=()=>!!lsg('gymrpg-midina-backup-sync');
 function restoreBk(){try{const b=JSON.parse(lsg('gymrpg-midina-backup-sync'));if(!b)return;replaceD(b);D.ts=Date.now();save();toast('Dados anteriores restaurados');R()}catch(e){toast('Não foi possível restaurar.')}}
-const vD=()=>vCloud()+vInst()+vD0();
+const vD=()=>vDuoCfg()+vCloud()+vInst()+vD0();
 
 /* Histórico de peso */
 function wInit(){if(!Array.isArray(D.wh))D.wh=[];if(!D.wh.length&&+D.p.kg>0){const d=D.ss.length?D.ss.map(x=>x.d).filter(Boolean).sort()[0]:td();D.wh.push({d,kg:+D.p.kg})}}
@@ -662,14 +664,328 @@ function renderHeroAura(){
  }
  requestAnimationFrame(renderHeroAura);
 }
+/* ===== MODO ARENA DE CASAL (CABO DE GUERRA, BOSS CO-OP, APOSTAS & PROVOCAÇÕES) ===== */
+const ME_DEFAULT = 'Midina'; // <-- No teu ficheiro muda para 'João', no dela deixa 'Midina'
+const DUO_KEY = 'gymrpg-duo-cfg';
+const BOSSES = [
+  ['🐉 Hidra da Inércia', 3000],
+  ['🗿 Golem de Ferro Negro', 3500],
+  ['👹 Titã do Abismo', 4000],
+  ['🦂 Leviatã de Aço', 3200],
+  ['🔥 Fenrir das Cinzas', 3800],
+  ['⚔️ Colosso da Preguiça', 3500]
+];
+let DUO = { url: '', room: 'joao-midina', me: ME_DEFAULT, lastTs: 0, peer: null, feed: [], stake: '', claims: {}, hist: {} };
+try { DUO = Object.assign(DUO, JSON.parse(localStorage.getItem(DUO_KEY) || '{}')); } catch(e) {}
 
+function saveDuoCfg() {
+  const u = ($('#duoUrl')?.value || '').trim().replace(/\/+$/, '');
+  const r = ($('#duoRoom')?.value || 'joao-midina').trim().replace(/[^a-zA-Z0-9_-]/g, '');
+  const m = ($('#duoMe')?.value || ME_DEFAULT).trim();
+  if (u && !/^https:\/\/.*\.firebaseio\.com$|^https:\/\/.*\.firebasedatabase\.app$/.test(u)) {
+    return toast('⚠️ O URL do Firebase deve terminar em .firebaseio.com ou .firebasedatabase.app');
+  }
+  DUO.url = u; DUO.room = r || 'joao-midina'; DUO.me = m || ME_DEFAULT;
+  localStorage.setItem(DUO_KEY, JSON.stringify(DUO));
+  toast('⚔️ Arena de Casal guardada!');
+  duoPushWorkout(null, null, S()).then(() => duoPoll(true));
+  R();
+}
+
+/* Calcula os dados da tua semana atual */
+function getMyWeekStats(s) {
+  const T = dnum(td()), wk = wkn(T), w0 = wk * 7 - 3;
+  const wkSS = D.ss.filter(x => { const n = dnum(x.d); return n >= w0 && n <= w0 + 6; });
+  const wkVol = Math.round(wkSS.reduce((a, x) => a + x.ex.reduce((b, e) => b + volE(e, swt(x)), 0), 0));
+  const wkXP = Math.round(wkSS.reduce((a, x) => a + ((s.sx.get(x) || {}).x || 0), 0));
+  const kg = +D.p.kg || 65;
+  const rel = Math.round((wkVol / kg) * 10) / 10; // Esforço Relativo = Volume ÷ Peso Corporal
+  return { wk, wkTrades: wkSS.length, wkVol, wkXP, kg, rel };
+}
+
+/* Envia o estado atual e notificações (treino, provocação ou recompensa) para a nuvem */
+async function duoPushWorkout(ns, g, s1, customEv) {
+  if (!DUO.url) return;
+  const st = getMyWeekStats(s1);
+  const payload = {
+    name: DUO.me, lv: s1.lv, rank: s1.t, xp: Math.round(s1.xp), stk: s1.stk,
+    kg: st.kg, wk: st.wk, wkTrades: st.wkTrades, wkVol: st.wkVol, wkXP: st.wkXP, rel: st.rel,
+    ts: Date.now()
+  };
+
+  let ev = customEv || null;
+  if (!ev && ns && g) {
+    ev = {
+      type: 'workout', who: DUO.me, day: ns.day, d: ns.d,
+      vol: Math.round(g.v), xp: Math.round(g.x), pr: !!g.pr, lv: s1.lv, ts: Date.now()
+    };
+  }
+
+  try {
+    const base = `${DUO.url}/rooms/${DUO.room}`;
+    await fetch(`${base}/players/${encodeURIComponent(DUO.me)}.json`, {
+      method: 'PUT', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(payload)
+    });
+    await fetch(`${base}/history/${st.wk}/${encodeURIComponent(DUO.me)}.json`, {
+      method: 'PUT', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ rel: st.rel, xp: st.wkXP, vol: st.wkVol })
+    });
+    if (ev) {
+      await fetch(`${base}/events/${ev.ts}.json`, {
+        method: 'PUT', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(ev)
+      });
+    }
+  } catch (e) {}
+}
+
+/* Botões Rápidos de Provocação e Incentivo (1 Toque) */
+async function duoSendTaunt(kind) {
+  if (!DUO.url) return toast('Configura primeiro a Arena em Dados!');
+  const msgs = {
+    fire:  `🔥 ${DUO.me}: "Bora treinar! O Boss da semana não se derrota sozinho!"`,
+    crown: `👑 ${DUO.me} mandou-te uma salva de palmas pelo teu grande treino!`,
+    eyes:  `👀 ${DUO.me}: "Cuidado que estou a passar-te à frente no Cabo de Guerra..."`
+  };
+  const ev = { type: 'taunt', kind, who: DUO.me, text: msgs[kind], d: td(), ts: Date.now() };
+  await duoPushWorkout(null, null, S(), ev);
+  toast('⚡ Mensagem enviada para o telemóvel do parceiro!');
+  duoPoll(true);
+}
+
+/* Guardar a Aposta / Prémio da Semana */
+async function duoSaveStake() {
+  if (!DUO.url) return;
+  const val = ($('#duoStakeInp')?.value || '').trim();
+  DUO.stake = val;
+  try {
+    await fetch(`${DUO.url}/rooms/${DUO.room}/meta/stake.json`, {
+      method: 'PUT', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(val)
+    });
+    toast('🏆 Aposta do casal atualizada!');
+    duoPoll(true);
+  } catch(e) {}
+}
+
+/* Reclamar o Baú do Boss Semanal (+200 XP extra) */
+async function duoClaimBoss(wk) {
+  const claimKey = wk + '|' + DUO.me;
+  if (DUO.claims && DUO.claims[claimKey]) return toast('Já recolheste o baú desta semana!');
+  D.px = (+D.px || 0) + 200; // Soma +200 XP permanentes ao jogador
+  DUO.claims = DUO.claims || {};
+  DUO.claims[claimKey] = true;
+  localStorage.setItem(DUO_KEY, JSON.stringify(DUO));
+  save();
+  try {
+    await fetch(`${DUO.url}/rooms/${DUO.room}/claims/${wk}_${encodeURIComponent(DUO.me)}.json`, {
+      method: 'PUT', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(true)
+    });
+  } catch(e) {}
+  if (typeof bgPulse === 'function') bgPulse();
+  if (typeof heroPulse === 'function') heroPulse();
+  const s1 = S();
+  await duoPushWorkout(null, null, s1, {
+    type: 'boss', who: DUO.me, text: `🎁 ${DUO.me} abriu o Baú do Boss Semanal (+200 XP)!`, d: td(), ts: Date.now()
+  });
+  toast('🎁 Baú do Boss aberto! Ganhaste +200 XP de bónus!');
+  R();
+}
+
+/* Procura novidades, treinos e provocações do parceiro a cada 15 segundos */
+async function duoPoll(force) {
+  if (!DUO.url || (document.hidden && !force)) return;
+  try {
+    const res = await fetch(`${DUO.url}/rooms/${DUO.room}.json`);
+    if (!res.ok) return;
+    const data = await res.json() || {};
+
+    const players = data.players || {};
+    const peerKey = Object.keys(players).find(k => k !== DUO.me);
+    const prevPeerTs = DUO.peer ? DUO.peer.ts : 0;
+    if (peerKey) DUO.peer = players[peerKey];
+
+    DUO.stake = (data.meta && data.meta.stake) || '';
+    DUO.hist = data.history || {};
+    const remoteClaims = data.claims || {};
+    Object.keys(remoteClaims).forEach(k => { DUO.claims[k.replace('_', '|')] = true; });
+
+    const evObj = data.events || {};
+    const evList = Object.values(evObj).sort((a, b) => b.ts - a.ts).slice(0, 15);
+    DUO.feed = evList;
+
+    const latestPartnerEv = evList.find(e => e.who !== DUO.me);
+    if (latestPartnerEv && latestPartnerEv.ts > (DUO.lastTs || 0)) {
+      const isFirstLoad = !DUO.lastTs;
+      DUO.lastTs = latestPartnerEv.ts;
+      localStorage.setItem(DUO_KEY, JSON.stringify(DUO));
+      if (!isFirstLoad) {
+        let msg = '';
+        if (latestPartnerEv.type === 'taunt' || latestPartnerEv.type === 'boss') {
+          msg = latestPartnerEv.text;
+          if (typeof bgPulse === 'function') bgPulse();
+        } else {
+          msg = `⚔️ ${latestPartnerEv.who} acabou de treinar ${latestPartnerEv.day} (${fx(latestPartnerEv.vol)} kg · +${fx(latestPartnerEv.xp)} XP)${latestPartnerEv.pr ? ' 🏅 RECORDE!' : ''}!`;
+        }
+        toast(msg);
+        if ('Notification' in window && Notification.permission === 'granted') {
+          new Notification('GYM RPG · Arena de Casal', { body: msg, icon: 'icon-192.png' });
+        }
+      }
+      if (V === 'n' || V === 'h') R();
+    } else if (DUO.peer && DUO.peer.ts !== prevPeerTs && V === 'n') {
+      R();
+    }
+  } catch (e) {}
+}
+setInterval(() => duoPoll(false), 15000);
+
+/* Cartão Completo da Arena de Casal (aparece em 🔔 Notificações) */
+function vDuo(s) {
+  if (!DUO.url) {
+    return `<div class="c flex items-center justify-between gap-2" style="border-color:rgba(255,204,51,.4)">
+      <div class="text-xs text-zinc-300">⚔️ <b>Arena de Casal (João &amp; Midina):</b> Liga os dois jogos no separador <b>Dados</b> para desbloquearem o Cabo de Guerra, o Boss Semanal e notificações em tempo real!</div>
+      <button class="b text-xs shrink-0" onclick="V='d';R()">Ligar</button>
+    </div>`;
+  }
+
+  const my = getMyWeekStats(s);
+  const p = DUO.peer;
+  const peerActiveWk = p && p.wk === my.wk;
+  const pRel = peerActiveWk ? (+p.rel || 0) : 0;
+  const pXP  = peerActiveWk ? (+p.wkXP || 0) : 0;
+  const pVol = peerActiveWk ? (+p.wkVol || 0) : 0;
+  const pTr  = peerActiveWk ? (+p.wkTrades || 0) : 0;
+
+  // 1. Cálculo do Cabo de Guerra (Esforço Relativo = Volume ÷ Peso Corporal)
+  const totRel = my.rel + pRel;
+  const myPct = totRel > 0 ? Math.min(92, Math.max(8, Math.round((my.rel / totRel) * 100))) : 50;
+  const leader = my.rel > pRel ? DUO.me : pRel > my.rel ? (p ? p.name : 'Parceiro') : 'Empate';
+
+  // 2. Cálculo do Placar Anual de Semanas Ganhas
+  let myWins = 0, peerWins = 0;
+  Object.entries(DUO.hist || {}).forEach(([wkKey, obj]) => {
+    if (+wkKey >= my.wk || !obj || !p) return; // Conta semanas já fechadas
+    const rm = obj[DUO.me] ? (+obj[DUO.me].rel || 0) : 0;
+    const rp = obj[p.name] ? (+obj[p.name].rel || 0) : 0;
+    if (rm > rp) myWins++; else if (rp > rm) peerWins++;
+  });
+
+  // 3. Cálculo do Boss Semanal Cooperativo
+  const [bossName, bossMaxHP] = BOSSES[Math.abs(my.wk) % BOSSES.length];
+  const dmgTotal = my.wkXP + pXP;
+  const bossHP = Math.max(0, bossMaxHP - dmgTotal);
+  const bossPct = Math.max(0, Math.min(100, (bossHP / bossMaxHP) * 100));
+  const bossDead = bossHP === 0;
+  const claimed = !!(DUO.claims && DUO.claims[my.wk + '|' + DUO.me]);
+
+  return `<div class="c space-y-3" style="border-color:rgba(255,204,51,.55);box-shadow:0 0 26px rgba(255,204,51,.12)">
+    <!-- Cabeçalho e Placar Anual -->
+    <div class="flex justify-between items-center gap-2">
+      <div>
+        <b class="text-[#ffd166] text-base">⚔️ Arena de Casal · Versus &amp; Co-Op</b>
+        <div class="text-[11px] text-zinc-400">🏆 Taça Anual de Semanas: <b class="text-white">${esc(DUO.me)} ${myWins}</b> – <b class="text-white">${peerWins} ${esc(p ? p.name : 'Parceiro')}</b></div>
+      </div>
+      <button class="g text-xs py-1 px-2.5" onclick="duoPushWorkout(null,null,S()).then(()=>duoPoll(true))">🔄 Sincronizar</button>
+    </div>
+
+    <!-- Aposta / Prémio da Semana -->
+    <div class="rounded-xl bg-black/35 border border-white/10 p-2.5">
+      <div class="text-[10px] uppercase tracking-wider text-[#ffd166]">🎁 Aposta / Prémio da Semana</div>
+      <div class="flex gap-1.5 mt-1">
+        <input id="duoStakeInp" class="i text-xs" placeholder="Ex: Quem perder faz massagem / Se matarmos o Boss vamos jantar..." value="${esc(DUO.stake)}">
+        <button class="g text-xs px-3 shrink-0" onclick="duoSaveStake()">Guardar</button>
+      </div>
+    </div>
+
+    <!-- Cartões Lado a Lado -->
+    <div class="grid grid-cols-2 gap-2 text-center">
+      <div class="rounded-xl bg-black/30 border border-[#39ff88]/40 p-2.5">
+        <div class="text-xs text-zinc-300 font-bold">👤 ${esc(DUO.me)} (Tu)</div>
+        <div class="text-lg font-bold mt-0.5">Nv ${s.lv} <span class="text-xs font-normal text-zinc-400">· 🔥 ${s.stk}d</span></div>
+        <div class="text-xs text-[#ffd166] font-bold mt-1">⚖️ ${fm(my.rel)}× peso corporal</div>
+        <div class="text-[11px] text-zinc-400">${my.wkTrades} treinos · ${fx(my.wkVol)} kg · +${fx(my.wkXP)} XP</div>
+      </div>
+      ${p ? `<div class="rounded-xl bg-black/30 border border-[#38bdf8]/40 p-2.5">
+        <div class="text-xs text-[#38bdf8] font-bold">⚔️ ${esc(p.name)}</div>
+        <div class="text-lg font-bold mt-0.5">Nv ${p.lv} <span class="text-xs font-normal text-zinc-400">· 🔥 ${p.stk}d</span></div>
+        <div class="text-xs text-[#ffd166] font-bold mt-1">⚖️ ${fm(pRel)}× peso corporal</div>
+        <div class="text-[11px] text-zinc-400">${pTr} treinos · ${fx(pVol)} kg · +${fx(pXP)} XP</div>
+      </div>` : `<div class="rounded-xl bg-black/30 border border-white/10 p-2.5 flex items-center justify-center text-xs text-zinc-500">A aguardar sincronização do parceiro na sala "${esc(DUO.room)}"…</div>`}
+    </div>
+
+    <!-- 1. Barra de Cabo de Guerra (Esforço Relativo Justo) -->
+    <div class="space-y-1">
+      <div class="flex justify-between text-[11px]">
+        <span class="text-zinc-400">⚖️ <b>Cabo de Guerra</b> (Volume ÷ Peso)</span>
+        <span class="text-[#ffd166] font-semibold">${leader === 'Empate' ? '⚡ Empate técnico!' : '👑 ' + esc(leader) + ' lidera a semana!'}</span>
+      </div>
+      <div class="h-3.5 w-full rounded-full overflow-hidden flex bg-black/50 p-0.5 border border-white/15">
+        <div style="width:${myPct}%;background:linear-gradient(90deg,#16a34a,#39ff88);transition:width .5s" class="h-full rounded-l-full"></div>
+        <div style="width:${100 - myPct}%;background:linear-gradient(90deg,#38bdf8,#0284c7);transition:width .5s" class="h-full rounded-r-full"></div>
+      </div>
+      <div class="flex justify-between text-[10px] text-zinc-400">
+        <span>${esc(DUO.me)}: ${myPct}% (${fm(my.rel)}×)</span>
+        <span>${esc(p ? p.name : 'Parceiro')}: ${100 - myPct}% (${fm(pRel)}×)</span>
+      </div>
+    </div>
+
+    <!-- 2. Boss Semanal Cooperativo (Raid de Casal) -->
+    <div class="rounded-xl bg-black/40 border ${bossDead ? 'border-[#39ff88]' : 'border-[#ff4d6d]/45'} p-2.5 space-y-1.5">
+      <div class="flex justify-between items-center">
+        <b class="text-xs ${bossDead ? 'text-[#39ff88]' : 'text-[#ff8fa3]'}">${bossName} ${bossDead ? '· DERROTADO! 🎉' : '· Raid Cooperativa'}</b>
+        <span class="text-xs font-bold">${fx(bossHP)} / ${fx(bossMaxHP)} HP</span>
+      </div>
+      <div class="h-3 w-full bg-white/10 rounded-full overflow-hidden">
+        <div class="h-full transition-all duration-500" style="width:${bossPct}%;background:linear-gradient(90deg,#c9184a,#ff4d6d);box-shadow:0 0 10px #ff4d6d"></div>
+      </div>
+      <div class="flex justify-between items-center text-[11px] text-zinc-400">
+        <span>Dano causado juntos: <b class="text-white">${fx(dmgTotal)}</b> (${esc(DUO.me)} ${fx(my.wkXP)} + ${esc(p ? p.name : 'Parceiro')} ${fx(pXP)})</span>
+        ${bossDead ? (claimed ? `<span class="text-[#39ff88] font-bold">✅ +200 XP recebidos</span>` : `<button class="b text-xs py-1 px-2.5 animate-bounce" onclick="duoClaimBoss(${my.wk})">🎁 Abrir Baú (+200 XP)</button>`) : ''}
+      </div>
+    </div>
+
+    <!-- 3. Botões Rápidos de Provocação & Incentivo -->
+    <div class="space-y-1">
+      <div class="text-[10px] uppercase tracking-wider text-zinc-400">⚡ Enviar Alerta Instantâneo ao Parceiro</div>
+      <div class="grid grid-cols-3 gap-1.5">
+        <button class="g text-xs py-1.5 px-2 truncate" onclick="duoSendTaunt('fire')">🔥 Bora treinar!</button>
+        <button class="g text-xs py-1.5 px-2 truncate" onclick="duoSendTaunt('crown')">👑 Grande treino!</button>
+        <button class="g text-xs py-1.5 px-2 truncate" onclick="duoSendTaunt('eyes')">👀 Passei-te!</button>
+      </div>
+    </div>
+
+    <!-- 4. Mural de Notificações em Tempo Real -->
+    ${DUO.feed.length ? `<div class="space-y-1 pt-2 border-t border-white/10">
+      <div class="text-[10px] uppercase tracking-wider text-zinc-400">🔔 Mural de Atividade em Tempo Real</div>
+      ${DUO.feed.slice(0, 6).map(e => `<div class="text-xs flex justify-between items-center gap-2 py-1 border-b border-white/5">
+        <span class="truncate">${e.type === 'taunt' || e.type === 'boss' ? esc(e.text) : `<b class="${e.who === DUO.me ? 'text-zinc-300' : 'text-[#ffd166]'}">${e.who === DUO.me ? '🏋️ Tu' : '⚔️ ' + esc(e.who)}</b> concluiu <b>${esc(e.day)}</b> (${fx(e.vol)} kg)${e.pr ? ' 🏅' : ''}`}</span>
+        <span class="text-[11px] text-zinc-400 shrink-0">${e.xp ? '+' + fx(e.xp) + ' XP · ' : ''}${fd(e.d || td())}</span>
+      </div>`).join('')}
+    </div>` : ''}
+  </div>`;
+}
+
+/* Cartão de Configuração da Arena (aparece em 💾 Dados) */
+function vDuoCfg() {
+  return `<div class="c space-y-2" style="border-color:rgba(255,204,51,.4)">
+    <b class="text-[#ffd166]">⚔️ Arena de Casal (Ligação João &amp; Midina)</b>
+    <p class="text-xs text-zinc-400">Cola aqui o link do teu Firebase Realtime Database. Usa exatamente o mesmo link e a mesma sala nos dois telemóveis.</p>
+    <input id="duoUrl" class="i text-xs" placeholder="https://gym-rpg-casal-default-rtdb.europe-west1.firebasedatabase.app" value="${esc(DUO.url)}">
+    <div class="grid grid-cols-2 gap-2">
+      <input id="duoRoom" class="i text-xs" placeholder="Sala (ex: joao-midina)" value="${esc(DUO.room)}">
+      <input id="duoMe" class="i text-xs" placeholder="O teu nome" value="${esc(DUO.me)}">
+    </div>
+    <div class="flex gap-2 flex-wrap">
+      <button class="b text-xs" onclick="saveDuoCfg()">Guardar e Sincronizar</button>
+      ${'Notification' in window && Notification.permission !== 'granted' ? `<button class="g text-xs" onclick="Notification.requestPermission().then(()=>toast('Alertas ativados no telemóvel!'))">🔔 Ativar Notificações no Telemóvel</button>` : ''}
+    </div>
+  </div>`;
+}
 function R(){if(ch){ch.destroy();ch=null}
  syncBgMode();
  const al=hasNotifAlert();
  $('#nav').innerHTML=[['h','⚔️ Herói'],['n','🔔 Notificações'+(al?' •':'')],['t','🏋️ Treino'],['x','📋 Histórico'],['r','📅 Resumo'],['g','📈 Evolução'],['c','🏆 Conquistas'],['d','💾 Dados']].map(([k,n])=>`<button onclick="V='${k}';R();scrollTo(0,0)" class="whitespace-nowrap px-3 py-2 rounded-lg text-sm ${V==k?'b':'g'}">${n}</button>`).join('');
  $('#m').innerHTML=({h:vH,n:vN,t:vT,x:vX,r:vR,g:vG,c:vC,d:vD})[V]();if(V=='g')dc();if(V=='h')ap();if(V=='t'){pm0=pmul();upd()}}
 function boot(){initAppBg();initHeroAura();wInit();try{const z=JSON.parse(localStorage.getItem('gymrpg-midina-draft')||'null');if(z){draft=z.draft||{};dv=z.dv||''}}catch(e){}srt();chk();
- save();R();onOpen();bkChk();rvChk();cloudInit();
+ save();R();onOpen();bkChk();rvChk();cloudInit();duoPoll(true);
  IDB.keys().then(ks=>{let n=0;(ks||[]).forEach(k=>{const[a,b]=String(k).split('|');if(b=='video'){VX.add(+a);delete VU[+a];n++}});if(n&&(V=='h'||V=='d'))R()}).catch(()=>{});
  document.addEventListener('visibilitychange',()=>{if(!document.hidden)onOpen()})}
 </script>
