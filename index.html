@@ -242,9 +242,11 @@ function vN(){
 }
 
 /* Cartão de Corrida (Km Mensais e Anuais) logo abaixo do Avatar */
+var runOff = 0; // 0 = mês atual, -1 = mês passado, etc.
 function vRunKm(){
- const now=td(),ym=now.slice(0,7),yr=now.slice(0,4);
- let mKm=0,yKm=0,mMin=0,yMin=0,mCnt=0,yCnt=0;
+ const d = new Date(); d.setDate(1); d.setMonth(d.getMonth() + runOff);
+ const yr = String(d.getFullYear()), mIdx = d.getMonth(), ym = `${yr}-${String(mIdx+1).padStart(2,'0')}`;
+ let mKm=0, yKm=0, mMin=0, yMin=0, mCnt=0, yCnt=0;
  D.ss.forEach(s=>{if(!s.d)return;let sk=0,sm=0;
   (s.ex||[]).forEach(e=>{const n=nz(e.n);
    if(n==='corrida'||n==='corrida continua'||n==='cooper'){
@@ -253,18 +255,27 @@ function vRunKm(){
   if(sk>0){if(s.d.slice(0,4)===yr){yKm+=sk;yMin+=sm;yCnt++}if(s.d.slice(0,7)===ym){mKm+=sk;mMin+=sm;mCnt++}}
  });
  const pace=(k,m)=>k>0&&m>0?`${Math.floor(m/k)}'${String(Math.round(((m/k)%1)*60)).padStart(2,'0')}"/km`:'—';
- const mesNome=MES[+now.slice(5,7)-1]||'Mês';
- return`<div class="c"><div class="flex justify-between items-center mb-2"><b class="text-[#38bdf8]">🏃 Corrida · Km Acumulados</b><span class="text-xs text-zinc-400">${mesNome} &amp; ${yr}</span></div>
+ const mesNome=MES[mIdx]||'Mês';
+ return`<div class="c">
+  <div class="flex justify-between items-center mb-2 gap-1">
+   <b class="text-[#38bdf8] text-sm">🏃 Corrida · Km</b>
+   <div class="flex items-center gap-1">
+    <button class="g text-xs py-1 px-2.5" onclick="runOff--;R()">◀</button>
+    <span class="text-xs font-bold text-[#e8f6ff] min-w-[95px] text-center">${mesNome.slice(0,3)} ${yr}${runOff===0?' · atual':''}</span>
+    <button class="g text-xs py-1 px-2.5" ${runOff>=0?'disabled style="opacity:.3"':''} onclick="runOff++;R()">▶</button>
+    ${runOff!==0?`<button class="b text-[10px] py-1 px-2" onclick="runOff=0;R()">Hoje</button>`:''}
+   </div>
+  </div>
   <div class="grid grid-cols-2 gap-2 text-center">
    <div class="rounded-xl bg-black/30 border border-white/10 p-2.5">
-    <div class="text-[10px] uppercase tracking-wider text-zinc-400">📅 Este Mês (${mesNome})</div>
+    <div class="text-[10px] uppercase tracking-wider text-zinc-400">📅 ${mesNome} ${yr}</div>
     <div class="text-2xl font-bold text-[#38bdf8] mt-0.5">${fm(mKm)} <span class="text-xs font-normal">km</span></div>
     <div class="text-[11px] text-zinc-400 mt-0.5">${mCnt} ${mCnt===1?'corrida':'corridas'} · ritmo ${pace(mKm,mMin)}</div>
    </div>
    <div class="rounded-xl bg-black/30 border border-white/10 p-2.5">
     <div class="text-[10px] uppercase tracking-wider text-zinc-400">🏆 Total Ano (${yr})</div>
     <div class="text-2xl font-bold text-[#7dd3fc] mt-0.5">${fm(yKm)} <span class="text-xs font-normal">km</span></div>
-    <div class="text-[11px] text-zinc-400 mt-0.5">${yCnt} ${yCnt===1?'corrida':'corridas'} · ${Math.round(yMin)} min totais</div>
+    <div class="text-[11px] text-zinc-400 mt-0.5">${yCnt} ${yCnt===1?'corrida':'corridas'} · ${Math.round(yMin)} min</div>
    </div>
   </div></div>`;
 }
