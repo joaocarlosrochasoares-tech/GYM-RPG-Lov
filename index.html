@@ -32,12 +32,7 @@ body{background:#040d1a;color:#e8f6ff;font-family:'Chakra Petch',system-ui,sans-
 <svg width="0" height="0" class="absolute pointer-events-none">
   <defs>
     <filter id="blueShift" color-interpolation-filters="sRGB">
-      <!-- Mantém os vermelhos/pele intactos, reduz o excesso de verde no fundo e transfere a energia verde para o canal azul -->
-      <feColorMatrix type="matrix" values="
-        1.00  0.00  0.00  0  0
-        0.22  0.55  0.15  0  0
-       -0.35  0.75  0.95  0  0
-        0.00  0.00  0.00  1  0" />
+      <feColorMatrix type="matrix" values="1 0 0 0 0  0.22 0.55 0.15 0 0  -0.35 0.75 0.95 0 0  0 0 0 1 0" />
     </filter>
   </defs>
 </svg>
@@ -48,14 +43,15 @@ body{background:#040d1a;color:#e8f6ff;font-family:'Chakra Petch',system-ui,sans-
 <script>
 const $=s=>document.querySelector(s),KEY='gymrpg_midina_v1';
 const L={sup:'Supino',agach:'Agachamento',dead:'Deadlift',hip:'Elev. Pélvica'},IC=['🛡️','🦵','⚓','🔥'];
-const DN=['Dia1','Dia2','Dia3','Dia4','Dia5'],LG={1:'Dia1',2:'Dia2',3:'Dia3',4:'Dia4',5:'Dia5'};
+const DN=['Dia1','Dia2','Dia3','Dia4','Dia5','Corrida Fim de Semana'],LG={1:'Dia1',2:'Dia2',3:'Dia3',4:'Dia4',5:'Dia5'};
 const dn=v=>{const q=nz(String(v||'')).replace(/\s/g,'');return DN.find(x=>nz(x).replace(/\s/g,'')==q)||LG[parseInt(q.replace(/\D/g,''))]||'Dia1'};
 const PL={
  'Dia1':['AGACHAMENTO','LEG PRESS','AFUNDOS','CADEIRA EXTENSORA','PANTURRILHA'],
  'Dia2':['PULLDOWN','REMADA BAIXA','REMADA UNILAT.','ROSCA BICEP','ROSCA MARTELO'],
  'Dia3':['DESENVOLVIMENTO','ELEVAÇÃO LATERAL','SUPINO','TRICEP','FLEXÃO'],
  'Dia4':['DEADLIFT','SUPINO INCLINADO','CRUNCH ABDOMINAL','HIPEREXTENSÃO LOMBAR','CARDIO (20/30MIN)'],
- 'Dia5':['ELEVAÇÃO PÉLVICA','AGACHAMENTO SUMO','BÚLGAROS','CADEIRA ABDUTORA abrir','EXTENSÃO DE GLÚTEO']
+ 'Dia5':['ELEVAÇÃO PÉLVICA','AGACHAMENTO SUMO','BÚLGAROS','CADEIRA ABDUTORA abrir','EXTENSÃO DE GLÚTEO'],
+ 'Corrida Fim de Semana':['CORRIDA']
 };
 /* Ranks / fases do avatar para a Midina: [nível mínimo, nome] */
 const RK2=[
@@ -72,18 +68,7 @@ const RK2=[
 ];
 const stg=lv=>RK2.filter(x=>x[0]<=lv).pop(),rank=lv=>stg(lv)[1],fase=lv=>RK2.indexOf(stg(lv))+1;
 const EMB='embutido';
-const avatarVideos={
-  1:  'media/f1_video.mp4',
-  11: 'media/f2_video.mp4',
-  21: 'media/f3_video.mp4',
-  31: null,
-  41: null,
-  51: null,
-  61: null,
-  71: null,
-  81: null,
-  91: null
-};
+const avatarVideos={1:EMB,11:EMB,21:EMB,31:EMB,41:EMB,51:EMB,61:EMB,71:EMB,81:EMB,91:EMB};
 let IM={};try{IM=JSON.parse(localStorage.getItem('gymrpg-midina-img')||'{}')}catch(e){}
 let D={p:{},ss:[],cx:{},u:{}};
 try{D=Object.assign(D,JSON.parse(localStorage.getItem(KEY)||'{}'))}catch(e){}
@@ -98,6 +83,8 @@ const fm=x=>String(Math.round(x*10)/10).replace('.',',');
 const rm=(w,r)=>r<1?0:w/(1.0278-.0278*Math.min(r,30));
 const BW=['lastro kg (opcional)','reps',(w,r)=>`${r} reps${w?` +${fm(w)} kg`:''}`];
 const CD={
+ 'corrida':['km','minutos',(w,r)=>`${fm(w)} km em ${r} min`],
+ 'corrida continua':['km','minutos',(w,r)=>`${fm(w)} km em ${r} min`],
  'cardio (20/30min)':['km (ou nível)','minutos',(w,r)=>`${r} min${w?` · ${fm(w)} km`:''}`],
  'flexao':BW,
  'crunch abdominal':BW,
@@ -120,7 +107,7 @@ function volE(e,kg){const c=cd(e.n);if(c&&c!==BW)return 0;const bw=c===BW?(+kg||
 
 const XA=30,XP2=2.8,XM=100,fx=n=>Math.round(n).toLocaleString('pt-PT'),CXP=L=>XA*(L-1)**XP2,LV=x=>Math.min(XM,Math.floor((x/XA)**(1/XP2)+1e-9)+1);
 const LT={sup:1.2,agach:2.0,dead:2.25,hip:2.5};
-const MET={'cardio (20/30min)':[8,(w,r)=>r],'prancha':[4,(w,r)=>r/60]};
+const MET={'corrida':[11,(w,r)=>r],'corrida continua':[11,(w,r)=>r],'cardio (20/30min)':[8,(w,r)=>r],'prancha':[4,(w,r)=>r/60]};
 const MUL=n=>{n=nz(n);return/panturrilha|trapezio/.test(n)?.5:/extensora|abdutora|gluteo|pulldown|remada/.test(n)?.75:/lateral|rosca|tricep|bicep/.test(n)?.8:1};
 function xpE(e,kg){const c=cd(e.n);kg=+kg||+D.p.kg||0;if(c&&c!==BW){const m=MET[nz(e.n)];return m?e.s.reduce((a,[w,r])=>a+m[0]*kg*Math.max(0,m[1](+w||0,+r||0))/60/2,0):0}return volE(e,kg)/XP_DIV*MUL(e.n)}
 
@@ -220,6 +207,7 @@ const vAI=()=>`<div class="c space-y-2"><b class="text-[#38bdf8]">Vídeos e imag
 
 /* Vistas */
 const DS=['Seg','Ter','Qua','Qui','Sex','Sáb','Dom'];
+const MES=['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
 const quando=g=>g==0?'hoje':g==1?'ontem':g<0?'data futura':`há ${g} dias`;
 function vStk(s){const T=dnum(td()),m0=wkn(T)*7-3,set=new Set(D.ss.map(x=>dnum(x.d))),on=s.mult;
  const pips=DS.map((d,i)=>{const n=m0+i,tr=set.has(n);return`<div class="flex-1 text-center"><div class="h-2 rounded-full ${tr?'bg-[#38bdf8]':n>T?'bg-white/5':'bg-white/10'}" style="${tr?'box-shadow:0 0 8px #38bdf8':''}"></div><div class="text-[10px] mt-1 ${n==T?'text-[#38bdf8] font-bold':'text-zinc-500'}">${d}</div></div>`}).join('');
@@ -237,10 +225,38 @@ function vStk(s){const T=dnum(td()),m0=wkn(T)*7-3,set=new Set(D.ss.map(x=>dnum(x
 function hasNotifAlert(){try{const s=S();return !!(dlAct()||dlSug()||(s.gl!=null&&s.gl>=ATR_DIAS-2))}catch(e){return false}}
 function vN(){
  const s=S(),b=dlBanner();
- return`<div class="c flex items-center justify-between"><b class="text-[#38bdf8]">🔔 Centro de Notificações &amp; Estado</b><span class="text-xs text-zinc-400">Streak, Descarga e Missões</span></div>`
+ return`<div class="c flex items-center justify-between"><b class="text-[#38bdf8]">🔔 Centro de Notificações &amp; Estado</b><span class="text-xs text-zinc-400">Arena, Streak e Missões</span></div>`
   +vDuo(s)
   +(b||`<div class="c text-xs text-zinc-400">🛌 <b class="text-[#e8f6ff]">Semana de descarga:</b> Sem descarga ativa ou sugerida de momento (recomendada a cada 4 a 6 semanas).</div>`)
   +vStk(s)+vMiss(s);
+}
+
+/* Cartão de Corrida (Km Mensais e Anuais) logo abaixo do Avatar */
+function vRunKm(){
+ const now=td(),ym=now.slice(0,7),yr=now.slice(0,4);
+ let mKm=0,yKm=0,mMin=0,yMin=0,mCnt=0,yCnt=0;
+ D.ss.forEach(s=>{if(!s.d)return;let sk=0,sm=0;
+  (s.ex||[]).forEach(e=>{const n=nz(e.n);
+   if(n==='corrida'||n==='corrida continua'||n==='cooper'){
+    (e.s||[]).forEach(([w,r])=>{const k=n==='cooper'?((+w||0)/1000):(+w||0);if(k>0){sk+=k;sm+=(+r||0)}})}
+  });
+  if(sk>0){if(s.d.slice(0,4)===yr){yKm+=sk;yMin+=sm;yCnt++}if(s.d.slice(0,7)===ym){mKm+=sk;mMin+=sm;mCnt++}}
+ });
+ const pace=(k,m)=>k>0&&m>0?`${Math.floor(m/k)}'${String(Math.round(((m/k)%1)*60)).padStart(2,'0')}"/km`:'—';
+ const mesNome=MES[+now.slice(5,7)-1]||'Mês';
+ return`<div class="c"><div class="flex justify-between items-center mb-2"><b class="text-[#38bdf8]">🏃 Corrida · Km Acumulados</b><span class="text-xs text-zinc-400">${mesNome} &amp; ${yr}</span></div>
+  <div class="grid grid-cols-2 gap-2 text-center">
+   <div class="rounded-xl bg-black/30 border border-white/10 p-2.5">
+    <div class="text-[10px] uppercase tracking-wider text-zinc-400">📅 Este Mês (${mesNome})</div>
+    <div class="text-2xl font-bold text-[#38bdf8] mt-0.5">${fm(mKm)} <span class="text-xs font-normal">km</span></div>
+    <div class="text-[11px] text-zinc-400 mt-0.5">${mCnt} ${mCnt===1?'corrida':'corridas'} · ritmo ${pace(mKm,mMin)}</div>
+   </div>
+   <div class="rounded-xl bg-black/30 border border-white/10 p-2.5">
+    <div class="text-[10px] uppercase tracking-wider text-zinc-400">🏆 Total Ano (${yr})</div>
+    <div class="text-2xl font-bold text-[#7dd3fc] mt-0.5">${fm(yKm)} <span class="text-xs font-normal">km</span></div>
+    <div class="text-[11px] text-zinc-400 mt-0.5">${yCnt} ${yCnt===1?'corrida':'corridas'} · ${Math.round(yMin)} min totais</div>
+   </div>
+  </div></div>`;
 }
 
 function vH0(){const s=S(),p=D.p,ne=RK2.find(x=>x[0]>s.lv),mx=s.lv>=XM,cur=CXP(s.lv),nx=mx?cur:CXP(s.lv+1),pc=mx?100:Math.min(100,(s.xp-cur)/(nx-cur)*100);
@@ -251,9 +267,9 @@ function vH0(){const s=S(),p=D.p,ne=RK2.find(x=>x[0]>s.lv),mx=s.lv>=XM,cur=CXP(s
  ${pe||!p.kg?`<div class="c"><div class="grid grid-cols-3 gap-2 text-xs">${[['kg','Peso (kg)',p.kg],['cm','Altura (cm)',p.cm],['ag','Idade',p.age]].map(([k,n,v])=>`<label>${n}<input id="${k}" class="i mt-1" inputmode="decimal" value="${v?fm(v):''}"></label>`).join('')}</div><button class="b w-full mt-3" onclick="sp()">Guardar perfil</button></div>`:''}
  <div class="c text-center"><div class="flex items-end justify-between"><div class="text-left"><div class="text-xs text-zinc-400">Nível</div><div class="text-4xl font-bold text-[#38bdf8]" style="text-shadow:0 0 16px #38bdf899">${s.lv}</div></div><div class="text-right"><div class="text-xs text-zinc-400">Rank · Fase ${fase(s.lv)}/10</div><div class="font-semibold">${s.t}</div></div></div>
  <div id="heroBox" class="hero-box relative mx-auto mt-3 w-full max-w-[360px] aspect-[2/3] rounded-2xl overflow-hidden border border-[#38bdf8]/35" style="--aura-glow:rgba(${mCol},.55);--aura-bot:rgba(${mCol},.35);box-shadow:0 0 ${(18+pr*.42).toFixed(0)}px rgba(${mCol},${(.22+pr*.005).toFixed(2)})">
-  <img id="iF" alt="Avatar de frente" class="av absolute inset-0 w-full h-full object-cover z-10">
-  <img id="iB" alt="Avatar de costas" class="av absolute inset-0 w-full h-full object-cover z-10" style="opacity:0">
-  <video id="iV" class="av absolute inset-0 w-full h-full object-cover z-10" muted loop playsinline autoplay preload="auto" disablepictureinpicture style="opacity:0"></video>
+ <img id="iF" alt="Avatar de frente" class="av absolute inset-0 w-full h-full object-cover z-10">
+<img id="iB" alt="Avatar de costas" class="av absolute inset-0 w-full h-full object-cover z-10" style="opacity:0">
+<video id="iV" class="av absolute inset-0 w-full h-full object-cover z-10" muted loop playsinline autoplay preload="auto" disablepictureinpicture style="opacity:0"></video>
   <canvas id="heroAuraCv" class="absolute inset-0 w-full h-full z-20" style="mix-blend-mode:screen;touch-action:pan-y"></canvas>
  </div>
  <div class="flex gap-2 mt-3 max-w-[360px] mx-auto"><button id="btnV" onclick="tf('video')">▶ VÍDEO</button><button id="btnF" onclick="tf('frente')">FRENTE</button><button id="btnC" onclick="tf('costas')">COSTAS</button></div>
@@ -264,13 +280,14 @@ function vH0(){const s=S(),p=D.p,ne=RK2.find(x=>x[0]>s.lv),mx=s.lv>=XM,cur=CXP(s
   <div class="h-3.5 bg-white/10 rounded-full overflow-hidden mt-1"><div class="h-full rounded-full" style="width:${pr}%;background:linear-gradient(90deg,#0284c7,#38bdf8);box-shadow:0 0 14px #38bdf8"></div></div>
   <div class="text-[11px] text-zinc-500 mt-1">${ne?`Faltam ${fx(r1-s.xp)} XP para a fase ${fase(ne[0])}`:'Fase final do avatar'}${rk[0]>1?` · margem antes de regredir de rank: ${fx(s.xp-r0)} XP`:''}</div>
  </div></div>
+ ${vRunKm()}
  <div class="grid grid-cols-2 gap-2">${Object.keys(L).map((k,i)=>`<div class="c"><div class="text-xl">${IC[i]}</div><div class="text-xs text-zinc-400">${L[k]} · 1RM</div><div class="text-2xl font-bold text-[#38bdf8]">${s.b[k]?fm(s.b[k]):'—'}<span class="text-sm"> kg</span></div></div>`).join('')}</div>
- <p class="text-xs text-zinc-500">XP por treino = Σ(Peso × Repetições) ÷ 10. Nas flexões, abdominais e lombar o Peso é o peso corporal + lastro; o cardio ganha XP pelos minutos. 🔥 Streak: ${STK_META} dias de treino seguidos, com no máximo ${STK_GAP-1} dias de pausa (+5% XP).</p>`}
+ <p class="text-xs text-zinc-500">XP por treino = Σ(Peso × Repetições) ÷ 10. Nas flexões, abdominais e lombar o Peso é o peso corporal + lastro; a corrida e o cardio ganham XP pelos minutos. 🔥 Streak: ${STK_META} dias de treino seguidos, com no máximo ${STK_GAP-1} dias de pausa (+5% XP).</p>`}
 function sp(){let kg=pn($('#kg').value),cm=pn($('#cm').value);if(cm&&cm<3)cm*=100;if(kg<30||kg>300||cm<100||cm>250)return toast('Verifica o peso (kg) e a altura (cm).');wInit();const k0=+D.p.kg;D.p={kg,cm,age:pn($('#ag').value)};if(kg!==k0)wSet(td(),kg);save();pe=0;R();toast('Perfil guardado')}
 
 function last(n){const z=nz(n),c=cd(n);for(let j=D.ss.length-1;j>=0;j--){const s=D.ss[j],e=s.ex.find(x=>nz(x.n)==z);if(e){const[w,r]=c?e.s[0]:e.s.reduce((a,c)=>rm(...c)>rm(...a)?c:a),df=(Date.now()-Date.parse(s.d))/864e5;return`${df>=5&&df<=9?'Semana passada':'Última sessão ('+fd(s.d)+')'}: ${c?c[2](w,r):`${fm(w)}kg × ${r} reps`}`}}return''}
 function vT(){const dr=draft[day]=draft[day]||{},baseLen=(PL[day]||[]).length;
- let h=`<div class="grid grid-cols-5 gap-1">${DN.map(d=>`<button onclick="day='${d}';R()" class="rounded-lg text-xs whitespace-nowrap ${d==day?'b':'g'}" style="padding:9px 2px">${d}</button>`).join('')}</div>${dlCard()}
+ let h=`<div class="grid grid-cols-5 gap-1">${DN.map(d=>`<button onclick="day='${d}';R()" class="rounded-lg text-xs whitespace-nowrap ${d.includes('Corrida')?'col-span-5':''} ${d==day?'b':'g'}" style="padding:9px 4px">${d.includes('Corrida')?'🏃 '+d:d}</button>`).join('')}</div>${dlCard()}
  <label class="text-xs text-zinc-400 block">Data do treino<input type="date" class="i mt-1" id="dt" value="${dv||td()}" oninput="dv=this.value;pm0=pmul();upd()"></label>`;
  EX(day).forEach((n,i)=>{const k=mk(n),c=cd(n),bw=c===BW,cx=car(n),st=dr[n]=dr[n]||[['',''],['',''],['','']],l=last(n),isCustom=i>=baseLen;
   const h1=cx?c[0]:bw?'Lastro (kg)':'Peso (kg)',h2=cx?c[1]:'Repetições';
@@ -370,7 +387,7 @@ function hDel(i,b){if(hdi!=i){hdi=i;b.textContent='Toca outra vez para apagar';r
 function vX(){const s=S(),T=dnum(td()),tv=D.ss.reduce((a,x)=>a+x.ex.reduce((b,e)=>b+volE(e,swt(x)),0),0),L=D.ss.map((x,i)=>[x,i]).filter(([x])=>!hf||x.day==hf).reverse();
  return`<div class="c"><b class="text-[#38bdf8]">Treinos registados</b><div class="text-xs text-zinc-400 mt-1">${D.ss.length} treinos · volume total ${fx(tv)} kg${s.lastD?` · último ${fd(s.lastD)} (${quando(T-dnum(s.lastD))})`:''}</div>
  <div class="flex gap-2 mt-3 flex-wrap"><button class="g text-sm" onclick="dlf('treinos-midina.csv',csvT(),'text/csv')">⬇ Descarregar CSV</button><button class="g text-sm" onclick="dlf('treinos-midina.json',jsonT(),'application/json')">⬇ Descarregar JSON</button></div></div>
- <div class="grid grid-cols-3 gap-1">${['',...DN].map(d=>`<button onclick="hf='${d}';R()" class="rounded-lg text-xs whitespace-nowrap ${d==hf?'b':'g'}" style="padding:9px 2px">${d||'Todos'}</button>`).join('')}</div>`
+ <div class="grid grid-cols-3 gap-1">${['',...DN].map(d=>`<button onclick="hf='${d}';R()" class="rounded-lg text-xs whitespace-nowrap truncate ${d==hf?'b':'g'}" style="padding:9px 4px">${d||'Todos'}</button>`).join('')}</div>`
  +(L.length?L.map(([x,i])=>{const q=s.sx.get(x),v=x.ex.reduce((a,e)=>a+volE(e,swt(x)),0);
   return`<details class="c"><summary class="cursor-pointer"><b class="text-[#38bdf8]">${esc(x.day)}</b> <span class="text-zinc-400 text-sm">· ${fd(x.d)} (${WD[new Date(x.d+'T12:00').getDay()]||''})</span><div class="text-xs text-zinc-400 mt-1">${x.ex.length} exercícios · ${fx(v)} kg${q?` · +${fx(q.x)} XP`:''}</div></summary>
   ${x.ex.map(e=>`<div class="mt-3 text-sm"><b>${esc(e.n)}</b><div class="text-xs text-zinc-300">${e.s.map(z=>esc(fmt(e,z))).join(' · ')}</div></div>`).join('')}
@@ -493,7 +510,7 @@ function dlSugEx(e){const c=cd(e.n),Z=e.s||[],N=Z.length;if(!N)return'';const h=
  return`<b>ritmo leve</b> ${G}(antes: ${c[2](+Z[0][0]||0,+Z[0][1]||0)})</span>`}
 function dlCard(){if(!dlAct())return'';const W=dlWin(),inW=x=>{const n=dnum(x.d);return W.some(([a,b])=>n>=a&&n<=b)},L=D.ss.filter(x=>x.day==day&&!inW(x)).sort((a,b)=>a.d<b.d?-1:1).pop();
  return`<div class="c" style="border-color:rgba(255,200,87,.45)"><b class="text-[#ffd166]">🛌 Descarga · ${esc(day)}</b>${L?`<div class="text-xs text-zinc-400 mt-1">Com base no último treino (${fd(L.d)}):</div>${L.ex.map(e=>`<div class="mt-2 text-sm"><b>${esc(e.n)}</b><div class="text-xs text-[#e8f6ff]">${dlSugEx(e)}</div></div>`).join('')}`:'<div class="text-xs text-zinc-400 mt-1">Ainda sem treino registado neste dia.</div>'}</div>`}
-var RV={m:'w',o:0};const MES=['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
+var RV={m:'w',o:0};
 function rvRange(){const T=dnum(td());if(RV.m=='w'){const a=wkn(T)*7-3+RV.o*7;return[a,a+6]}const t=new Date();t.setDate(1);t.setMonth(t.getMonth()+RV.o);const y=t.getFullYear(),m=t.getMonth(),n=new Date(y,m+1,1),p=v=>String(v).padStart(2,'0');return[dnum(`${y}-${p(m+1)}-01`),dnum(`${n.getFullYear()}-${p(n.getMonth()+1)}-01`)-1]}
 function vR(){const s=S(),[a,b]=rvRange(),len=b-a+1,inR=(x,lo,hi)=>{const n=dnum(x.d);return n>=lo&&n<=hi},ss=D.ss.filter(x=>inR(x,a,b)),ps=D.ss.filter(x=>inR(x,a-len,a-1)),vol=L=>L.reduce((t,x)=>t+x.ex.reduce((u,e)=>u+volE(e,swt(x)),0),0),v=vol(ss),pv=vol(ps),days=new Set(ss.map(x=>x.d)).size,xp=ss.reduce((t,x)=>t+((s.sx.get(x)||{}).x||0),0),
  best=(L,k)=>{let m=0;L.forEach(x=>x.ex.forEach(e=>{if(mk(e.n)==k)e.s.forEach(([w,r])=>{if(r<=12)m=Math.max(m,rm(w,r))})}));return m},before=D.ss.filter(x=>dnum(x.d)<a),LN={sup:'Supino',agach:'Agachamento',dead:'Deadlift',hip:'Elev. Pélvica'},
@@ -664,18 +681,19 @@ function renderHeroAura(){
  }
  requestAnimationFrame(renderHeroAura);
 }
+
 /* ===== MODO ARENA DE CASAL (CABO DE GUERRA, BOSS CO-OP, APOSTAS & PROVOCAÇÕES) ===== */
-const ME_DEFAULT = 'Midina'; // <-- No teu ficheiro muda para 'João', no dela deixa 'Midina'
-const DUO_KEY = 'gymrpg-duo-cfg';
+const ME_DEFAULT = 'Midina';
+const DUO_KEY = 'gymrpg-midina-duo-cfg';
 const BOSSES = [
-  ['🐉 Hidra da Inércia', 3000],
-  ['🗿 Golem de Ferro Negro', 3500],
-  ['👹 Titã do Abismo', 4000],
-  ['🦂 Leviatã de Aço', 3200],
-  ['🔥 Fenrir das Cinzas', 3800],
-  ['⚔️ Colosso da Preguiça', 3500]
+  ['🐉 Hidra da Inércia', 10000],
+  ['🗿 Golem de Ferro Negro', 10500],
+  ['👹 Titã do Abismo', 11000],
+  ['🦂 Leviatã de Aço', 10200],
+  ['🔥 Fenrir das Cinzas', 10800],
+  ['⚔️ Colosso da Preguiça', 10500]
 ];
-let DUO = { url: '', room: 'joao-midina', me: ME_DEFAULT, lastTs: 0, peer: null, feed: [], stake: '', claims: {}, hist: {} };
+let DUO = { url: '', room: 'joao-midina', me: ME_DEFAULT, lastTs: 0, peer: null, feed: [], stake: '', claims: {}, hist: {}, bossTier: 1 };
 try { DUO = Object.assign(DUO, JSON.parse(localStorage.getItem(DUO_KEY) || '{}')); } catch(e) {}
 
 function saveDuoCfg() {
@@ -692,32 +710,46 @@ function saveDuoCfg() {
   R();
 }
 
-/* Calcula os dados da tua semana atual */
 function getMyWeekStats(s) {
   const T = dnum(td()), wk = wkn(T), w0 = wk * 7 - 3;
   const wkSS = D.ss.filter(x => { const n = dnum(x.d); return n >= w0 && n <= w0 + 6; });
   const wkVol = Math.round(wkSS.reduce((a, x) => a + x.ex.reduce((b, e) => b + volE(e, swt(x)), 0), 0));
   const wkXP = Math.round(wkSS.reduce((a, x) => a + ((s.sx.get(x) || {}).x || 0), 0));
-  const kg = +D.p.kg || 65;
-  const rel = Math.round((wkVol / kg) * 10) / 10; // Esforço Relativo = Volume ÷ Peso Corporal
-  return { wk, wkTrades: wkSS.length, wkVol, wkXP, kg, rel };
+  let wkKm = 0;
+  wkSS.forEach(x => (x.ex || []).forEach(e => {
+    const n = nz(e.n);
+    if (n === 'corrida' || n === 'corrida continua' || n === 'cooper') {
+      (e.s || []).forEach(([w]) => { wkKm += (n === 'cooper' ? (+w || 0) / 1000 : (+w || 0)); });
+    }
+  }));
+  wkKm = Math.round(wkKm * 10) / 10;
+  const kg = +D.p.kg || 60;
+  const rel = Math.round(((wkVol + wkKm * 150) / kg) * 10) / 10;
+  return { wk, wkTrades: wkSS.length, wkVol, wkXP, wkKm, kg, rel };
 }
 
-/* Envia o estado atual e notificações (treino, provocação ou recompensa) para a nuvem */
 async function duoPushWorkout(ns, g, s1, customEv) {
   if (!DUO.url) return;
   const st = getMyWeekStats(s1);
   const payload = {
     name: DUO.me, lv: s1.lv, rank: s1.t, xp: Math.round(s1.xp), stk: s1.stk,
-    kg: st.kg, wk: st.wk, wkTrades: st.wkTrades, wkVol: st.wkVol, wkXP: st.wkXP, rel: st.rel,
+    kg: st.kg, wk: st.wk, wkTrades: st.wkTrades, wkVol: st.wkVol, wkXP: st.wkXP, wkKm: st.wkKm, rel: st.rel,
     ts: Date.now()
   };
 
   let ev = customEv || null;
   if (!ev && ns && g) {
+    let rKm = 0, rMin = 0;
+    (ns.ex || []).forEach(e => {
+      const n = nz(e.n);
+      if (n === 'corrida' || n === 'corrida continua' || n === 'cooper') {
+        (e.s || []).forEach(([w, r]) => { rKm += (n === 'cooper' ? (+w || 0) / 1000 : (+w || 0)); rMin += (+r || 0); });
+      }
+    });
     ev = {
       type: 'workout', who: DUO.me, day: ns.day, d: ns.d,
-      vol: Math.round(g.v), xp: Math.round(g.x), pr: !!g.pr, lv: s1.lv, ts: Date.now()
+      vol: Math.round(g.v), xp: Math.round(g.x), km: Math.round(rKm * 10) / 10, min: Math.round(rMin),
+      pr: !!g.pr, lv: s1.lv, ts: Date.now()
     };
   }
 
@@ -727,7 +759,7 @@ async function duoPushWorkout(ns, g, s1, customEv) {
       method: 'PUT', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(payload)
     });
     await fetch(`${base}/history/${st.wk}/${encodeURIComponent(DUO.me)}.json`, {
-      method: 'PUT', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ rel: st.rel, xp: st.wkXP, vol: st.wkVol })
+      method: 'PUT', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ rel: st.rel, xp: st.wkXP, vol: st.wkVol, km: st.wkKm })
     });
     if (ev) {
       await fetch(`${base}/events/${ev.ts}.json`, {
@@ -737,7 +769,6 @@ async function duoPushWorkout(ns, g, s1, customEv) {
   } catch (e) {}
 }
 
-/* Botões Rápidos de Provocação e Incentivo (1 Toque) */
 async function duoSendTaunt(kind) {
   if (!DUO.url) return toast('Configura primeiro a Arena em Dados!');
   const msgs = {
@@ -751,7 +782,6 @@ async function duoSendTaunt(kind) {
   duoPoll(true);
 }
 
-/* Guardar a Aposta / Prémio da Semana */
 async function duoSaveStake() {
   if (!DUO.url) return;
   const val = ($('#duoStakeInp')?.value || '').trim();
@@ -765,31 +795,46 @@ async function duoSaveStake() {
   } catch(e) {}
 }
 
-/* Reclamar o Baú do Boss Semanal (+200 XP extra) */
 async function duoClaimBoss(wk) {
   const claimKey = wk + '|' + DUO.me;
   if (DUO.claims && DUO.claims[claimKey]) return toast('Já recolheste o baú desta semana!');
-  D.px = (+D.px || 0) + 200; // Soma +200 XP permanentes ao jogador
+  D.px = (+D.px || 0) + 200;
   DUO.claims = DUO.claims || {};
   DUO.claims[claimKey] = true;
   localStorage.setItem(DUO_KEY, JSON.stringify(DUO));
   save();
+
+  const bIdx = Math.abs(wk) % BOSSES.length;
   try {
-    await fetch(`${DUO.url}/rooms/${DUO.room}/claims/${wk}_${encodeURIComponent(DUO.me)}.json`, {
+    const base = `${DUO.url}/rooms/${DUO.room}`;
+    await fetch(`${base}/claims/${wk}_${encodeURIComponent(DUO.me)}.json`, {
       method: 'PUT', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(true)
     });
+    // Verifica se o escalão já subiu nesta semana; se não, fortalece o próximo Boss!
+    const upRes = await fetch(`${base}/meta/lastBossUpWk.json`);
+    const lastUpWk = await upRes.json();
+    if (lastUpWk !== wk) {
+      const nextTier = (DUO.bossTier || 1) + 1;
+      await fetch(`${base}/meta/bossTier.json`, {
+        method: 'PUT', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(nextTier)
+      });
+      await fetch(`${base}/meta/lastBossUpWk.json`, {
+        method: 'PUT', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(wk)
+      });
+      DUO.bossTier = nextTier;
+    }
   } catch(e) {}
+
   if (typeof bgPulse === 'function') bgPulse();
   if (typeof heroPulse === 'function') heroPulse();
   const s1 = S();
   await duoPushWorkout(null, null, s1, {
-    type: 'boss', who: DUO.me, text: `🎁 ${DUO.me} abriu o Baú do Boss Semanal (+200 XP)!`, d: td(), ts: Date.now()
+    type: 'boss', who: DUO.me, text: `🎁 ${DUO.me} abriu o Baú do Boss (+200 XP)! O próximo Boss subiu para Nv ${DUO.bossTier}!`, d: td(), ts: Date.now()
   });
-  toast('🎁 Baú do Boss aberto! Ganhaste +200 XP de bónus!');
+  toast(`🎁 Baú aberto (+200 XP)! O próximo Boss será Nv ${DUO.bossTier}!`);
   R();
 }
 
-/* Procura novidades, treinos e provocações do parceiro a cada 15 segundos */
 async function duoPoll(force) {
   if (!DUO.url || (document.hidden && !force)) return;
   try {
@@ -804,6 +849,7 @@ async function duoPoll(force) {
 
     DUO.stake = (data.meta && data.meta.stake) || '';
     DUO.hist = data.history || {};
+    DUO.bossTier = Math.max(1, +(data.meta && data.meta.bossTier) || 1);
     const remoteClaims = data.claims || {};
     Object.keys(remoteClaims).forEach(k => { DUO.claims[k.replace('_', '|')] = true; });
 
@@ -822,7 +868,8 @@ async function duoPoll(force) {
           msg = latestPartnerEv.text;
           if (typeof bgPulse === 'function') bgPulse();
         } else {
-          msg = `⚔️ ${latestPartnerEv.who} acabou de treinar ${latestPartnerEv.day} (${fx(latestPartnerEv.vol)} kg · +${fx(latestPartnerEv.xp)} XP)${latestPartnerEv.pr ? ' 🏅 RECORDE!' : ''}!`;
+          const det = latestPartnerEv.km > 0 ? `🏃 ${fm(latestPartnerEv.km)} km em ${latestPartnerEv.min} min` : `${fx(latestPartnerEv.vol)} kg`;
+          msg = `⚔️ ${latestPartnerEv.who} acabou de registar ${latestPartnerEv.day} (${det} · +${fx(latestPartnerEv.xp)} XP)${latestPartnerEv.pr ? ' 🏅 RECORDE!' : ''}!`;
         }
         toast(msg);
         if ('Notification' in window && Notification.permission === 'granted') {
@@ -837,7 +884,6 @@ async function duoPoll(force) {
 }
 setInterval(() => duoPoll(false), 15000);
 
-/* Cartão Completo da Arena de Casal (aparece em 🔔 Notificações) */
 function vDuo(s) {
   if (!DUO.url) {
     return `<div class="c flex items-center justify-between gap-2" style="border-color:rgba(255,204,51,.4)">
@@ -852,24 +898,25 @@ function vDuo(s) {
   const pRel = peerActiveWk ? (+p.rel || 0) : 0;
   const pXP  = peerActiveWk ? (+p.wkXP || 0) : 0;
   const pVol = peerActiveWk ? (+p.wkVol || 0) : 0;
+  const pKm  = peerActiveWk ? (+p.wkKm || 0) : 0;
   const pTr  = peerActiveWk ? (+p.wkTrades || 0) : 0;
 
-  // 1. Cálculo do Cabo de Guerra (Esforço Relativo = Volume ÷ Peso Corporal)
   const totRel = my.rel + pRel;
   const myPct = totRel > 0 ? Math.min(92, Math.max(8, Math.round((my.rel / totRel) * 100))) : 50;
   const leader = my.rel > pRel ? DUO.me : pRel > my.rel ? (p ? p.name : 'Parceiro') : 'Empate';
 
-  // 2. Cálculo do Placar Anual de Semanas Ganhas
   let myWins = 0, peerWins = 0;
   Object.entries(DUO.hist || {}).forEach(([wkKey, obj]) => {
-    if (+wkKey >= my.wk || !obj || !p) return; // Conta semanas já fechadas
+    if (+wkKey >= my.wk || !obj || !p) return;
     const rm = obj[DUO.me] ? (+obj[DUO.me].rel || 0) : 0;
     const rp = obj[p.name] ? (+obj[p.name].rel || 0) : 0;
     if (rm > rp) myWins++; else if (rp > rm) peerWins++;
   });
 
-  // 3. Cálculo do Boss Semanal Cooperativo
-  const [bossName, bossMaxHP] = BOSSES[Math.abs(my.wk) % BOSSES.length];
+  const [rawBossName, baseHP] = BOSSES[Math.abs(my.wk) % BOSSES.length];
+  const tier = Math.max(1, +DUO.bossTier || 1);
+  const bossName = `${rawBossName} · Nv ${tier}`;
+  const bossMaxHP = Math.round(baseHP * Math.pow(1.25, tier - 1));
   const dmgTotal = my.wkXP + pXP;
   const bossHP = Math.max(0, bossMaxHP - dmgTotal);
   const bossPct = Math.max(0, Math.min(100, (bossHP / bossMaxHP) * 100));
@@ -877,7 +924,6 @@ function vDuo(s) {
   const claimed = !!(DUO.claims && DUO.claims[my.wk + '|' + DUO.me]);
 
   return `<div class="c space-y-3" style="border-color:rgba(255,204,51,.55);box-shadow:0 0 26px rgba(255,204,51,.12)">
-    <!-- Cabeçalho e Placar Anual -->
     <div class="flex justify-between items-center gap-2">
       <div>
         <b class="text-[#ffd166] text-base">⚔️ Arena de Casal · Versus &amp; Co-Op</b>
@@ -886,7 +932,6 @@ function vDuo(s) {
       <button class="g text-xs py-1 px-2.5" onclick="duoPushWorkout(null,null,S()).then(()=>duoPoll(true))">🔄 Sincronizar</button>
     </div>
 
-    <!-- Aposta / Prémio da Semana -->
     <div class="rounded-xl bg-black/35 border border-white/10 p-2.5">
       <div class="text-[10px] uppercase tracking-wider text-[#ffd166]">🎁 Aposta / Prémio da Semana</div>
       <div class="flex gap-1.5 mt-1">
@@ -895,31 +940,29 @@ function vDuo(s) {
       </div>
     </div>
 
-    <!-- Cartões Lado a Lado -->
     <div class="grid grid-cols-2 gap-2 text-center">
-      <div class="rounded-xl bg-black/30 border border-[#39ff88]/40 p-2.5">
-        <div class="text-xs text-zinc-300 font-bold">👤 ${esc(DUO.me)} (Tu)</div>
+      <div class="rounded-xl bg-black/30 border border-[#38bdf8]/40 p-2.5">
+        <div class="text-xs text-[#38bdf8] font-bold">👤 ${esc(DUO.me)} (Tu)</div>
         <div class="text-lg font-bold mt-0.5">Nv ${s.lv} <span class="text-xs font-normal text-zinc-400">· 🔥 ${s.stk}d</span></div>
-        <div class="text-xs text-[#ffd166] font-bold mt-1">⚖️ ${fm(my.rel)}× peso corporal</div>
-        <div class="text-[11px] text-zinc-400">${my.wkTrades} treinos · ${fx(my.wkVol)} kg · +${fx(my.wkXP)} XP</div>
+        <div class="text-xs text-[#ffd166] font-bold mt-1">⚖️ ${fm(my.rel)}× esforço</div>
+        <div class="text-[11px] text-zinc-400">${my.wkTrades} tr · ${fx(my.wkVol)} kg${my.wkKm?` · 🏃 ${fm(my.wkKm)} km`:''}</div>
       </div>
-      ${p ? `<div class="rounded-xl bg-black/30 border border-[#38bdf8]/40 p-2.5">
-        <div class="text-xs text-[#38bdf8] font-bold">⚔️ ${esc(p.name)}</div>
+      ${p ? `<div class="rounded-xl bg-black/30 border border-[#39ff88]/40 p-2.5">
+        <div class="text-xs text-[#39ff88] font-bold">⚔️ ${esc(p.name)}</div>
         <div class="text-lg font-bold mt-0.5">Nv ${p.lv} <span class="text-xs font-normal text-zinc-400">· 🔥 ${p.stk}d</span></div>
-        <div class="text-xs text-[#ffd166] font-bold mt-1">⚖️ ${fm(pRel)}× peso corporal</div>
-        <div class="text-[11px] text-zinc-400">${pTr} treinos · ${fx(pVol)} kg · +${fx(pXP)} XP</div>
+        <div class="text-xs text-[#ffd166] font-bold mt-1">⚖️ ${fm(pRel)}× esforço</div>
+        <div class="text-[11px] text-zinc-400">${pTr} tr · ${fx(pVol)} kg${pKm?` · 🏃 ${fm(pKm)} km`:''}</div>
       </div>` : `<div class="rounded-xl bg-black/30 border border-white/10 p-2.5 flex items-center justify-center text-xs text-zinc-500">A aguardar sincronização do parceiro na sala "${esc(DUO.room)}"…</div>`}
     </div>
 
-    <!-- 1. Barra de Cabo de Guerra (Esforço Relativo Justo) -->
     <div class="space-y-1">
       <div class="flex justify-between text-[11px]">
-        <span class="text-zinc-400">⚖️ <b>Cabo de Guerra</b> (Volume ÷ Peso)</span>
+        <span class="text-zinc-400">⚖️ <b>Cabo de Guerra</b> (Volume + Corrida ÷ Peso)</span>
         <span class="text-[#ffd166] font-semibold">${leader === 'Empate' ? '⚡ Empate técnico!' : '👑 ' + esc(leader) + ' lidera a semana!'}</span>
       </div>
       <div class="h-3.5 w-full rounded-full overflow-hidden flex bg-black/50 p-0.5 border border-white/15">
-        <div style="width:${myPct}%;background:linear-gradient(90deg,#16a34a,#39ff88);transition:width .5s" class="h-full rounded-l-full"></div>
-        <div style="width:${100 - myPct}%;background:linear-gradient(90deg,#38bdf8,#0284c7);transition:width .5s" class="h-full rounded-r-full"></div>
+        <div style="width:${myPct}%;background:linear-gradient(90deg,#0284c7,#38bdf8);transition:width .5s" class="h-full rounded-l-full"></div>
+        <div style="width:${100 - myPct}%;background:linear-gradient(90deg,#39ff88,#16a34a);transition:width .5s" class="h-full rounded-r-full"></div>
       </div>
       <div class="flex justify-between text-[10px] text-zinc-400">
         <span>${esc(DUO.me)}: ${myPct}% (${fm(my.rel)}×)</span>
@@ -927,10 +970,9 @@ function vDuo(s) {
       </div>
     </div>
 
-    <!-- 2. Boss Semanal Cooperativo (Raid de Casal) -->
-    <div class="rounded-xl bg-black/40 border ${bossDead ? 'border-[#39ff88]' : 'border-[#ff4d6d]/45'} p-2.5 space-y-1.5">
+    <div class="rounded-xl bg-black/40 border ${bossDead ? 'border-[#38bdf8]' : 'border-[#ff4d6d]/45'} p-2.5 space-y-1.5">
       <div class="flex justify-between items-center">
-        <b class="text-xs ${bossDead ? 'text-[#39ff88]' : 'text-[#ff8fa3]'}">${bossName} ${bossDead ? '· DERROTADO! 🎉' : '· Raid Cooperativa'}</b>
+        <b class="text-xs ${bossDead ? 'text-[#38bdf8]' : 'text-[#ff8fa3]'}">${bossName} ${bossDead ? '· DERROTADO! 🎉' : '· Raid Cooperativa'}</b>
         <span class="text-xs font-bold">${fx(bossHP)} / ${fx(bossMaxHP)} HP</span>
       </div>
       <div class="h-3 w-full bg-white/10 rounded-full overflow-hidden">
@@ -938,11 +980,10 @@ function vDuo(s) {
       </div>
       <div class="flex justify-between items-center text-[11px] text-zinc-400">
         <span>Dano causado juntos: <b class="text-white">${fx(dmgTotal)}</b> (${esc(DUO.me)} ${fx(my.wkXP)} + ${esc(p ? p.name : 'Parceiro')} ${fx(pXP)})</span>
-        ${bossDead ? (claimed ? `<span class="text-[#39ff88] font-bold">✅ +200 XP recebidos</span>` : `<button class="b text-xs py-1 px-2.5 animate-bounce" onclick="duoClaimBoss(${my.wk})">🎁 Abrir Baú (+200 XP)</button>`) : ''}
+        ${bossDead ? (claimed ? `<span class="text-[#38bdf8] font-bold">✅ +200 XP recebidos</span>` : `<button class="b text-xs py-1 px-2.5 animate-bounce" onclick="duoClaimBoss(${my.wk})">🎁 Abrir Baú (+200 XP)</button>`) : ''}
       </div>
     </div>
 
-    <!-- 3. Botões Rápidos de Provocação & Incentivo -->
     <div class="space-y-1">
       <div class="text-[10px] uppercase tracking-wider text-zinc-400">⚡ Enviar Alerta Instantâneo ao Parceiro</div>
       <div class="grid grid-cols-3 gap-1.5">
@@ -952,18 +993,16 @@ function vDuo(s) {
       </div>
     </div>
 
-    <!-- 4. Mural de Notificações em Tempo Real -->
     ${DUO.feed.length ? `<div class="space-y-1 pt-2 border-t border-white/10">
       <div class="text-[10px] uppercase tracking-wider text-zinc-400">🔔 Mural de Atividade em Tempo Real</div>
       ${DUO.feed.slice(0, 6).map(e => `<div class="text-xs flex justify-between items-center gap-2 py-1 border-b border-white/5">
-        <span class="truncate">${e.type === 'taunt' || e.type === 'boss' ? esc(e.text) : `<b class="${e.who === DUO.me ? 'text-zinc-300' : 'text-[#ffd166]'}">${e.who === DUO.me ? '🏋️ Tu' : '⚔️ ' + esc(e.who)}</b> concluiu <b>${esc(e.day)}</b> (${fx(e.vol)} kg)${e.pr ? ' 🏅' : ''}`}</span>
+        <span class="truncate">${e.type === 'taunt' || e.type === 'boss' ? esc(e.text) : `<b class="${e.who === DUO.me ? 'text-zinc-300' : 'text-[#ffd166]'}">${e.who === DUO.me ? '🏋️ Tu' : '⚔️ ' + esc(e.who)}</b> concluiu <b>${esc(e.day)}</b> (${e.km > 0 ? '🏃 ' + fm(e.km) + ' km' : fx(e.vol) + ' kg'})${e.pr ? ' 🏅' : ''}`}</span>
         <span class="text-[11px] text-zinc-400 shrink-0">${e.xp ? '+' + fx(e.xp) + ' XP · ' : ''}${fd(e.d || td())}</span>
       </div>`).join('')}
     </div>` : ''}
   </div>`;
 }
 
-/* Cartão de Configuração da Arena (aparece em 💾 Dados) */
 function vDuoCfg() {
   return `<div class="c space-y-2" style="border-color:rgba(255,204,51,.4)">
     <b class="text-[#ffd166]">⚔️ Arena de Casal (Ligação João &amp; Midina)</b>
@@ -979,6 +1018,7 @@ function vDuoCfg() {
     </div>
   </div>`;
 }
+
 function R(){if(ch){ch.destroy();ch=null}
  syncBgMode();
  const al=hasNotifAlert();
@@ -988,24 +1028,6 @@ function boot(){initAppBg();initHeroAura();wInit();try{const z=JSON.parse(localS
  save();R();onOpen();bkChk();rvChk();cloudInit();duoPoll(true);
  IDB.keys().then(ks=>{let n=0;(ks||[]).forEach(k=>{const[a,b]=String(k).split('|');if(b=='video'){VX.add(+a);delete VU[+a];n++}});if(n&&(V=='h'||V=='d'))R()}).catch(()=>{});
  document.addEventListener('visibilitychange',()=>{if(!document.hidden)onOpen()})}
-</script>
-<script>
-/* Fases: 1 (Nv 1), 11 (Nv 11), 21 (Nv 21), 31 (Nv 31), 41 (Nv 41), 51 (Nv 51), 61 (Nv 61), 71 (Nv 71), 81 (Nv 81), 91 (Nv 91) */
-const avatarStages = {
-  1:  { frente: 'media/f1_frente.webp', costas: 'media/f1_costas.webp' },
-  11: { frente: 'media/f2_frente.webp', costas: 'media/f2_costas.webp' },
-  21: { frente: 'media/f3_frente.webp', costas: 'media/f3_costas.webp' },
-  31: { frente: 'media/f4_frente.webp', costas: 'media/f4_costas.webp' },
-  41: { frente: 'media/f5_frente.webp', costas: 'media/f5_costas.webp' },
-  51: { frente: 'media/f6_frente.webp', costas: 'media/f6_costas.webp' },
-  61: { frente: 'media/f7_frente.webp', costas: 'media/f7_costas.webp' },
-  71: { frente: 'media/f8_frente.jpg', costas: 'media/f8_costas.jpg' },
-  81: { frente: 'media/f9_frente.jpg', costas: 'media/f9_costas.jpg' },
-  91: { frente: 'media/f10_frente.jpg', costas: 'media/f10_costas.jpg' }
-};
-
-/* Deixa o VEMB vazio para o ficheiro não pesar */
-const VEMB = {};
 </script>
 <script>boot()</script>
 </body></html>
