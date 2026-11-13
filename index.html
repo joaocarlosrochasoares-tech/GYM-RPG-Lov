@@ -368,7 +368,7 @@ const vD0=()=>`<div class="c space-y-2"><b class="text-[#38bdf8]">Backup e impor
  <input type="file" accept=".json,.csv,.txt" class="text-xs" onchange="fl(this)"></div>
  ${vAI()}<button class="g w-full text-red-300 mt-3" onclick="rz()">Apagar todos os dados</button>`;
 const out=t=>{$('#io').value=t;$('#io').select()};
-const xj=()=>out(JSON.stringify({v:6,p:D.p,ss:D.ss,cx:D.cx,pm:D.pm,px:D.px,wh:D.wh}));
+const xj=()=>out(JSON.stringify({v:6,p:D.p,ss:D.ss,cx:D.cx,pm:D.pm,px:D.px,wh:D.wh,duo:D.duo}));
 const xc=()=>out('data;dia;exercicio;peso;reps\n'+D.ss.flatMap(s=>s.ex.flatMap(e=>e.s.map(([w,r])=>[s.d,s.day,e.n,fm(w),r].join(';')))).join('\n'));
 const cp=()=>{const t=$('#io');t.select();try{navigator.clipboard.writeText(t.value).catch(()=>document.execCommand('copy'))}catch(e){document.execCommand('copy')}toast('Copiado')};
 const fl=i=>{const r=new FileReader();r.onload=()=>imp(r.result);r.readAsText(i.files[0])};
@@ -432,8 +432,12 @@ const GC=(()=>{try{return JSON.parse(lsg('gymrpg-midina-g-cfg'))||{}}catch(e){re
 function dh(){return JSON.stringify(D,(k,v)=>k=='ts'||k=='al'||k=='lv'||k=='bk'?undefined:v)}
 function saveLocal(){lss(KEY,JSON.stringify(D))}
 function setSt(st,msg){CL.st=st;CL.msg=msg||'';if(V=='d'||V=='h')R()}
-function replaceD(o){Object.keys(D).forEach(k=>delete D[k]);Object.assign(D,{p:{},ss:[],cx:{},u:{}},o);srt();wInit();CL.h=dh();saveLocal()}
-function mergeSS(a,b){const k=s=>s.d+'|'+s.day,h=new Set(a.map(k));return a.concat(b.filter(s=>!h.has(k(s))))}
+function replaceD(o){
+  Object.keys(D).forEach(k=>delete D[k]);
+  Object.assign(D,{p:{},ss:[],cx:{},u:{}},o);
+  if(D.duo&&D.duo.url){DUO=Object.assign(DUO,D.duo);localStorage.setItem(DUO_KEY,JSON.stringify(DUO))}
+  srt();wInit();CL.h=dh();saveLocal();
+}function mergeSS(a,b){const k=s=>s.d+'|'+s.day,h=new Set(a.map(k));return a.concat(b.filter(s=>!h.has(k(s))))}
 function applyRemote(rd,why){if(!(rd.ss||[]).length&&D.ss.length){CL.dirty=true;return}lss('gymrpg-midina-backup-sync',JSON.stringify(D));replaceD(rd);chk();toast('☁️ '+why);if(V!='t'){R();onOpen()}}
 const EXP='Sessão Google expirada: toca em Reconectar.';
 async function gapi(u,o){if(!CL.tok||Date.now()>CL.exp){CL.tok='';setSt('expired');throw new Error(EXP)}o=o||{};o.headers=Object.assign({Authorization:'Bearer '+CL.tok},o.headers||{});const r=await fetch(u,o);if(r.status==401){CL.tok='';setSt('expired');throw new Error(EXP)}if(!r.ok){let m='';try{m=(await r.json()).error.message}catch(e){}throw new Error('Google Drive: '+(m||r.status))}return r}
@@ -726,6 +730,8 @@ function saveDuoCfg() {
   }
   DUO.url = u; DUO.room = r || 'joao-midina'; DUO.me = m || ME_DEFAULT;
   localStorage.setItem(DUO_KEY, JSON.stringify(DUO));
+  D.duo = { url: DUO.url, room: DUO.room, me: DUO.me };
+save();
   toast('⚔️ Arena de Casal guardada!');
   duoPushWorkout(null, null, S()).then(() => duoPoll(true));
   R();
@@ -786,6 +792,11 @@ async function duoPushWorkout(ns, g, s1, customEv) {
       await fetch(`${base}/events/${ev.ts}.json`, {
         method: 'PUT', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(ev)
       });
+      if (DUO.feed && DUO.feed.length >= 20) {
+        DUO.feed.slice(19).forEach(old => {
+          if (old && old.ts) fetch(`${base}/events/${old.ts}.json`, { method: 'DELETE' }).catch(()=>{});
+        });
+      }
     }
   } catch (e) {}
 }
