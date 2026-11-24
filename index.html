@@ -72,8 +72,8 @@ const avatarVideos = {
   1:  'media/f1_video.mp4',
   11: 'media/f2_video.mp4',
   21: 'media/f3_video.mp4',
-  31: null,
-  41: null,
+  31: 'media/f4_video.mp4',
+  41: 'media/f5_video.mp4',
   51: null,
   61: null,
   71: null,
@@ -187,18 +187,82 @@ const IDB=(()=>{let p;const op=()=>p=p||new Promise((ok,ko)=>{try{const r=indexe
 const VU={},VX=new Set,VBAD=new Set;
 const b64u=(b,t)=>{const s=atob(b),a=new Uint8Array(s.length);for(let i=0;i<s.length;i++)a[i]=s.charCodeAt(i);return URL.createObjectURL(new Blob([a],{type:t}))};
 const hasV=k=>!VBAD.has(k)&&(VX.has(k)||(avatarVideos[k]===EMB?(typeof VEMB!=='undefined'&&!!VEMB[k]):!!avatarVideos[k]));
-async function vsrc(k){if(k in VU)return VU[k];let u=null;
- if(VX.has(k))try{const x=await IDB.get(k+'|video');if(x)u=typeof x=='string'?x:URL.createObjectURL(x)}catch(e){}
- if(!u){const a=avatarVideos[k];u=a===EMB?((typeof VEMB!=='undefined'&&VEMB[k])?b64u(VEMB[k],'video/mp4'):null):a||null}
- return VU[k]=u}
-function vis(){const v=$('#iV');if(!v)return;const hv=hasV(CK),f=face=='video'&&!hv?'frente':face;
- $('#iF').style.opacity=f=='frente'?1:0;$('#iB').style.opacity=f=='costas'?1:0;v.style.opacity=f=='video'?1:0;
- if(f=='video')v.play().catch(()=>{});else v.pause();
- [['btnV','video'],['btnF','frente'],['btnC','costas']].forEach(([id,x])=>{const b=$('#'+id);b.className=(f==x?'b':'g')+' flex-1 text-sm tracking-wide';if(id=='btnV')b.style.display=hv?'':'none'})}
-function ap(){const l=S().lv,k=CK=stg(l)[0],v=$('#iV');
- [['frente','#iF'],['costas','#iB']].forEach(([w,q])=>{const i=$(q);i.onerror=()=>{i.onerror=null;i.src=fb(w)};i.src=asrc(w,l)});
- v.muted=true;v.poster=asrc('frente',l);v.onerror=()=>{if(v.getAttribute('src')){VBAD.add(k);vis()}};vis();
- if(hasV(k))vsrc(k).then(u=>{if($('#iV')!==v||CK!==k)return;if(!u){VBAD.add(k);return vis()}if(v.getAttribute('src')!==u)v.src=u;if(face=='video')v.play().catch(()=>{})})}
+async function vsrc(k){
+ if(k in VU) return VU[k];
+ let u = null;
+ if(VX.has(k)) {
+  try {
+   const x = await IDB.get(k+'|video');
+   if(x) u = typeof x == 'string' ? x : URL.createObjectURL(x);
+  } catch(e){}
+ }
+ if(!u){
+  const a = avatarVideos[k];
+  u = a === EMB ? ((typeof VEMB !== 'undefined' && VEMB[k]) ? b64u(VEMB[k],'video/mp4') : null) : a || null;
+ }
+ return VU[k] = u;
+}
+
+function vis(){
+ const v = $('#iV'); if(!v) return;
+ const hv = hasV(CK);
+ const f = (face === 'video' && !hv) ? 'frente' : face;
+ 
+ const elF = $('#iF'); const elB = $('#iB');
+ if(elF) elF.style.opacity = (f === 'frente') ? '1' : '0';
+ if(elB) elB.style.opacity = (f === 'costas') ? '1' : '0';
+ if(v) v.style.opacity = (f === 'video') ? '1' : '0';
+
+ if(f === 'video') {
+  v.play().catch(() => {});
+ } else {
+  v.pause();
+ }
+
+ [['btnV','video'],['btnF','frente'],['btnC','costas']].forEach(([id,x])=>{
+  const b = $('#'+id);
+  if(b) {
+   b.className = (f === x ? 'b' : 'g') + ' flex-1 text-sm tracking-wide';
+   if(id === 'btnV') b.style.display = hv ? '' : 'none';
+  }
+ });
+}
+
+function ap(){
+ const sObj = S();
+ if(!sObj) return;
+ const l = sObj.lv, k = CK = stg(l)[0], v = $('#iV');
+ 
+ [['frente','#iF'],['costas','#iB']].forEach(([w,q])=>{
+  const i = $(q);
+  if(i) {
+   i.onerror = () => { i.onerror = null; i.src = fb(w); };
+   i.src = asrc(w, l);
+  }
+ });
+
+ if(v) {
+  v.muted = true;
+  v.poster = asrc('frente', l);
+  v.onerror = () => { VBAD.add(k); vis(); };
+ }
+ 
+ vis();
+
+ if(hasV(k)) {
+  vsrc(k).then(u => {
+   if($('#iV') !== v || CK !== k) return;
+   if(!u) { VBAD.add(k); vis(); return; }
+   if(v.getAttribute('src') !== u) {
+    v.src = u;
+    v.load(); // Força o browser a carregar o novo vídeo sem conflitos
+   }
+   if(face === 'video') {
+    v.play().catch(() => {});
+   }
+  });
+ }
+}
 const tf=x=>{face=x;vis()};
 const IMS=()=>{try{localStorage.setItem('gymrpg-midina-img',JSON.stringify(IM));return 1}catch(e){return 0}};
 const fn=l=>RK2.findIndex(x=>x[0]==l)+1;
@@ -214,21 +278,80 @@ const vAI=()=>`<div class="c space-y-2"><b class="text-[#38bdf8]">Vídeos e imag
  <div class="grid grid-cols-2 gap-2"><select id="xs" class="i">${RK2.map(([l,n],i)=>`<option value="${l}">Fase ${i+1} · Nv ${l}+ · ${n}${hasV(l)?' 🎬':''}</option>`).join('')}</select><select id="xv" class="i"><option value="video">Vídeo</option><option value="frente">Foto de frente</option><option value="costas">Foto de costas</option></select></div>
  <input id="xu" class="i" placeholder="URL (opcional)"><input type="file" accept="video/*,image/*" id="xf" class="text-xs">
  <div class="flex gap-2"><button class="b" onclick="ai()">Guardar</button><button class="g" onclick="ar()">Repor fase</button></div></div>`;
-
-/* Vistas */
-const DS=['Seg','Ter','Qua','Qui','Sex','Sáb','Dom'];
+/* Cartão de Corrida (Km Mensais e Anuais) */
 const MES=['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
+var runOff = 0, runMode = 'm'; // runMode: 'm' (mês) ou 'y' (anos)
+function vRunKm(){
+ const d = new Date(); d.setDate(1); d.setMonth(d.getMonth() + runOff);
+ const yr = String(d.getFullYear()), mIdx = d.getMonth(), ym = `${yr}-${String(mIdx+1).padStart(2,'0')}`;
+ let mKm=0, yKm=0, aKm=0, mMin=0, yMin=0, aMin=0, mCnt=0, yCnt=0, aCnt=0;
+ D.ss.forEach(s=>{if(!s.d)return;let sk=0,sm=0;
+  (s.ex||[]).forEach(e=>{const n=nz(e.n);
+   if(n==='corrida'||n==='corrida continua'||n==='cooper'||n==='marcha'){
+    (e.s||[]).forEach(([w,r])=>{const k=n==='cooper'?((+w||0)/1000):(+w||0);if(k>0){sk+=k;sm+=(+r||0)}})}
+  });
+  if(sk>0){
+   aKm+=sk; aMin+=sm; aCnt++;
+   if(s.d.slice(0,4)===yr){yKm+=sk;yMin+=sm;yCnt++}
+   if(s.d.slice(0,7)===ym){mKm+=sk;mMin+=sm;mCnt++}
+  }
+ });
+ const pace=(k,m)=>k>0&&m>0?`${Math.floor(m/k)}'${String(Math.round(((m/k)%1)*60)).padStart(2,'0')}"/km`:'—';
+ const mesNome=MES[mIdx]||'Mês';
+ 
+ return`<div class="c">
+  <div class="flex justify-between items-center mb-2 gap-1">
+   <div class="flex items-center gap-1.5">
+    <b class="text-[#38bdf8] text-sm">🏃 Corrida</b>
+    <button class="text-[10px] px-2 py-0.5 rounded ${runMode==='m'?'b':'g'}" onclick="runMode='m';R()">Mês</button>
+    <button class="text-[10px] px-2 py-0.5 rounded ${runMode==='y'?'b':'g'}" onclick="runMode='y';R()">Anos</button>
+   </div>
+   <div class="flex items-center gap-1">
+    <button class="g text-xs py-1 px-2" onclick="runOff--;R()">◀</button>
+    <span class="text-xs font-bold text-[#e8fff1] min-w-[75px] text-center">${runMode==='m'?mesNome.slice(0,3)+' '+yr:yr}${runOff===0?' · atual':''}</span>
+    <button class="g text-xs py-1 px-2" ${runOff>=0?'disabled style="opacity:.3"':''} onclick="runOff++;R()">▶</button>
+    ${runOff!==0?`<button class="b text-[10px] py-1 px-2" onclick="runOff=0;R()">Hoje</button>`:''}
+   </div>
+  </div>
+  ${runMode==='m'?`
+  <div class="grid grid-cols-2 gap-2 text-center">
+   <div class="rounded-xl bg-black/30 border border-white/10 p-2.5">
+    <div class="text-[10px] uppercase tracking-wider text-zinc-400">📅 ${mesNome} ${yr}</div>
+    <div class="text-2xl font-bold text-[#38bdf8] mt-0.5">${fm(mKm)} <span class="text-xs font-normal">km</span></div>
+    <div class="text-[11px] text-zinc-400 mt-0.5">${mCnt} corridas · ${pace(mKm,mMin)}</div>
+   </div>
+   <div class="rounded-xl bg-black/30 border border-white/10 p-2.5">
+    <div class="text-[10px] uppercase tracking-wider text-zinc-400">🏆 Total Ano (${yr})</div>
+    <div class="text-2xl font-bold text-[#7dd3fc] mt-0.5">${fm(yKm)} <span class="text-xs font-normal">km</span></div>
+    <div class="text-[11px] text-zinc-400 mt-0.5">${yCnt} corridas · ${Math.round(yMin)} min</div>
+   </div>
+  </div>`:`
+  <div class="grid grid-cols-2 gap-2 text-center">
+   <div class="rounded-xl bg-black/30 border border-white/10 p-2.5">
+    <div class="text-[10px] uppercase tracking-wider text-zinc-400">🏆 Acumulado Ano (${yr})</div>
+    <div class="text-2xl font-bold text-[#38bdf8] mt-0.5">${fm(yKm)} <span class="text-xs font-normal">km</span></div>
+    <div class="text-[11px] text-zinc-400 mt-0.5">${yCnt} corridas · ritmo ${pace(yKm,yMin)}</div>
+   </div>
+   <div class="rounded-xl bg-black/30 border border-white/10 p-2.5">
+    <div class="text-[10px] uppercase tracking-wider text-zinc-400">🌟 Total Histórico</div>
+    <div class="text-2xl font-bold text-[#7dd3fc] mt-0.5">${fm(aKm)} <span class="text-xs font-normal">km</span></div>
+    <div class="text-[11px] text-zinc-400 mt-0.5">${aCnt} corridas · ${Math.round(aMin)} min totais</div>
+   </div>
+  </div>`}
+ </div>`;
+}
+const DS=['Seg','Ter','Qua','Qui','Sex','Sáb','Dom'];
 const quando=g=>g==0?'hoje':g==1?'ontem':g<0?'data futura':`há ${g} dias`;
 function vStk(s){const T=dnum(td()),m0=wkn(T)*7-3,set=new Set(D.ss.map(x=>dnum(x.d))),on=s.mult;
  const pips=DS.map((d,i)=>{const n=m0+i,tr=set.has(n);return`<div class="flex-1 text-center"><div class="h-2 rounded-full ${tr?'bg-[#38bdf8]':n>T?'bg-white/5':'bg-white/10'}" style="${tr?'box-shadow:0 0 8px #38bdf8':''}"></div><div class="text-[10px] mt-1 ${n==T?'text-[#38bdf8] font-bold':'text-zinc-500'}">${d}</div></div>`}).join('');
  const falta=Math.max(0,STK_META-s.wkc);
- let l1=s.last==null?'Ainda sem treinos registados.':`Sequência: <b class="text-[#e8f6ff]">${s.wkc}/${STK_META}</b> dias de treino · `+(falta?`falta${falta>1?'m':''} ${falta} para ativar o bónus`:'streak ativo ✔');
+ let l1=s.last==null?'Ainda sem treinos registados.':`Sequência: <b class="text-[#e8fff1]">${s.wkc}/${STK_META}</b> dias de treino · `+(falta?`falta${falta>1?'m':''} ${falta} para ativar o bónus`:'streak ativo ✔');
  let l2=s.last==null?'':`Último treino: ${quando(s.gl)} · `+(s.gl<=STK_GAP?`treina até ${fd(dstr(s.last+STK_GAP))} para não perderes o streak`:`streak reiniciado (${s.gl} dias sem treinar, máx. ${STK_GAP-1} dias de pausa)`);
  let l3='';if(s.gl!=null&&s.gl>ATR_DIAS)l3=`<div class="text-xs mt-2 text-[#ff8fa3]">⚠️ Em atrofia: −${fx(s.atr?s.atr.xp:0)} XP até agora (−0,5% do XP por dia além de ${ATR_DIAS} dias sem treinar)</div>`;
  else if(s.gl!=null&&s.gl>=ATR_DIAS-2)l3=`<div class="text-xs mt-2 text-[#ffd166]">⏳ A atrofia começa daqui a ${ATR_DIAS+1-s.gl} dia${ATR_DIAS+1-s.gl>1?'s':''} sem treino</div>`;
- return`<div class="c ${s.gl>ATR_DIAS?'alr':''}" style="${on?'border-color:rgba(56,189,248,.6);box-shadow:0 0 24px #38bdf833':''}"><div class="flex items-center justify-between gap-3">
+ return`<div class="c ${s.gl>ATR_DIAS?'alr':''}" style="${on?'border-color:rgba(57,255,136,.6);box-shadow:0 0 24px #38bdf833':''}"><div class="flex items-center justify-between gap-3">
   <div class="flex items-center gap-2"><span class="text-3xl ${on?'fl':''}" style="${on?'':'filter:grayscale(1);opacity:.5'}">🔥</span><div><div class="text-[10px] uppercase tracking-widest text-zinc-400">Consistência</div><div class="text-lg font-bold leading-tight whitespace-nowrap ${on?'text-[#38bdf8]':''}" style="${on?'text-shadow:0 0 12px #38bdf899':''}">Streak: ${s.stk} ${s.stk==1?'dia':'dias'}</div></div></div>
-  ${on?`<div class="px-3 py-1 rounded-full text-[11px] font-bold bg-[#38bdf8] text-[#041321] text-center leading-tight" style="box-shadow:0 0 16px #38bdf8">+5% XP<br>ATIVO</div>`:`<div class="px-3 py-1 rounded-full text-[11px] border border-white/20 text-zinc-400 text-center leading-tight">Bónus +5%<br>inativo</div>`}</div>
+  ${on?`<div class="px-3 py-1 rounded-full text-[11px] font-bold bg-[#38bdf8] text-[#04210f] text-center leading-tight" style="box-shadow:0 0 16px #38bdf8">+5% XP<br>ATIVO</div>`:`<div class="px-3 py-1 rounded-full text-[11px] border border-white/20 text-zinc-400 text-center leading-tight">Bónus +5%<br>inativo</div>`}</div>
   <div class="flex gap-1 mt-3">${pips}</div>
   <div class="text-xs text-zinc-400 mt-2">${l1}</div>${l2?`<div class="text-xs text-zinc-400 mt-1">${l2}</div>`:''}${l3}</div>`}
 
@@ -239,45 +362,6 @@ function vN(){
   +vDuo(s)
   +(b||`<div class="c text-xs text-zinc-400">🛌 <b class="text-[#e8f6ff]">Semana de descarga:</b> Sem descarga ativa ou sugerida de momento (recomendada a cada 4 a 6 semanas).</div>`)
   +vStk(s)+vMiss(s);
-}
-
-/* Cartão de Corrida (Km Mensais e Anuais) logo abaixo do Avatar */
-var runOff = 0; // 0 = mês atual, -1 = mês passado, etc.
-function vRunKm(){
- const d = new Date(); d.setDate(1); d.setMonth(d.getMonth() + runOff);
- const yr = String(d.getFullYear()), mIdx = d.getMonth(), ym = `${yr}-${String(mIdx+1).padStart(2,'0')}`;
- let mKm=0, yKm=0, mMin=0, yMin=0, mCnt=0, yCnt=0;
- D.ss.forEach(s=>{if(!s.d)return;let sk=0,sm=0;
-  (s.ex||[]).forEach(e=>{const n=nz(e.n);
-   if(n==='corrida'||n==='corrida continua'||n==='cooper'){
-    (e.s||[]).forEach(([w,r])=>{const k=n==='cooper'?((+w||0)/1000):(+w||0);if(k>0){sk+=k;sm+=(+r||0)}})}
-  });
-  if(sk>0){if(s.d.slice(0,4)===yr){yKm+=sk;yMin+=sm;yCnt++}if(s.d.slice(0,7)===ym){mKm+=sk;mMin+=sm;mCnt++}}
- });
- const pace=(k,m)=>k>0&&m>0?`${Math.floor(m/k)}'${String(Math.round(((m/k)%1)*60)).padStart(2,'0')}"/km`:'—';
- const mesNome=MES[mIdx]||'Mês';
- return`<div class="c">
-  <div class="flex justify-between items-center mb-2 gap-1">
-   <b class="text-[#38bdf8] text-sm">🏃 Corrida · Km</b>
-   <div class="flex items-center gap-1">
-    <button class="g text-xs py-1 px-2.5" onclick="runOff--;R()">◀</button>
-    <span class="text-xs font-bold text-[#e8f6ff] min-w-[95px] text-center">${mesNome.slice(0,3)} ${yr}${runOff===0?' · atual':''}</span>
-    <button class="g text-xs py-1 px-2.5" ${runOff>=0?'disabled style="opacity:.3"':''} onclick="runOff++;R()">▶</button>
-    ${runOff!==0?`<button class="b text-[10px] py-1 px-2" onclick="runOff=0;R()">Hoje</button>`:''}
-   </div>
-  </div>
-  <div class="grid grid-cols-2 gap-2 text-center">
-   <div class="rounded-xl bg-black/30 border border-white/10 p-2.5">
-    <div class="text-[10px] uppercase tracking-wider text-zinc-400">📅 ${mesNome} ${yr}</div>
-    <div class="text-2xl font-bold text-[#38bdf8] mt-0.5">${fm(mKm)} <span class="text-xs font-normal">km</span></div>
-    <div class="text-[11px] text-zinc-400 mt-0.5">${mCnt} ${mCnt===1?'corrida':'corridas'} · ritmo ${pace(mKm,mMin)}</div>
-   </div>
-   <div class="rounded-xl bg-black/30 border border-white/10 p-2.5">
-    <div class="text-[10px] uppercase tracking-wider text-zinc-400">🏆 Total Ano (${yr})</div>
-    <div class="text-2xl font-bold text-[#7dd3fc] mt-0.5">${fm(yKm)} <span class="text-xs font-normal">km</span></div>
-    <div class="text-[11px] text-zinc-400 mt-0.5">${yCnt} ${yCnt===1?'corrida':'corridas'} · ${Math.round(yMin)} min</div>
-   </div>
-  </div></div>`;
 }
 
 function vH0(){const s=S(),p=D.p,ne=RK2.find(x=>x[0]>s.lv),mx=s.lv>=XM,cur=CXP(s.lv),nx=mx?cur:CXP(s.lv+1),pc=mx?100:Math.min(100,(s.xp-cur)/(nx-cur)*100);
@@ -404,7 +488,12 @@ const fmt=(e,z)=>{const c=cd(e.n);return c?c[2](z[0],z[1]):`${fm(z[0])} kg × ${
 const csvT=()=>'data;dia;exercicio;peso;reps\n'+D.ss.flatMap(s=>s.ex.flatMap(e=>e.s.map(([w,r])=>[s.d,s.day,e.n,fm(w),r].join(';')))).join('\n');
 const jsonT=()=>JSON.stringify({v:6,p:D.p,ss:D.ss,cx:D.cx,pm:D.pm,px:D.px,wh:D.wh},null,1);
 function dlf(n,t,m){try{const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([t],{type:m+';charset=utf-8'}));a.download=n;document.body.append(a);a.click();a.remove();D.bk=Date.now();save();toast('Ficheiro '+n+' gerado')}catch(e){toast('Não deu para descarregar. Usa Dados → Exportar.')}}
-function hDel(i,b){if(hdi!=i){hdi=i;b.textContent='Toca outra vez para apagar';return}D.ss.splice(i,1);hdi=-1;D.lv=S().lv;save();toast('Treino apagado');R()}
+function hDel(i,b){
+ if(hdi!=i){hdi=i;b.textContent='Toca outra vez para apagar';return}
+ D.ss.splice(i,1); hdi=-1; D.lv=S().lv; save();
+ duoPushWorkout(null, null, S()).then(()=>duoPoll(true));
+ toast('Treino apagado e Arena sincronizada'); R();
+}
 function vX(){const s=S(),T=dnum(td()),tv=D.ss.reduce((a,x)=>a+x.ex.reduce((b,e)=>b+volE(e,swt(x)),0),0),L=D.ss.map((x,i)=>[x,i]).filter(([x])=>!hf||x.day==hf).reverse();
  return`<div class="c"><b class="text-[#38bdf8]">Treinos registados</b><div class="text-xs text-zinc-400 mt-1">${D.ss.length} treinos · volume total ${fx(tv)} kg${s.lastD?` · último ${fd(s.lastD)} (${quando(T-dnum(s.lastD))})`:''}</div>
  <div class="flex gap-2 mt-3 flex-wrap"><button class="g text-sm" onclick="dlf('treinos-midina.csv',csvT(),'text/csv')">⬇ Descarregar CSV</button><button class="g text-sm" onclick="dlf('treinos-midina.json',jsonT(),'application/json')">⬇ Descarregar JSON</button></div></div>
