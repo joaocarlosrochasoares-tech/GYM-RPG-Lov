@@ -364,17 +364,31 @@ function vN(){
   +vStk(s)+vMiss(s);
 }
 
+function getAge(){
+ if(!D.p.dob) return D.p.age ? fm(D.p.age)+' anos' : '';
+ const b = new Date(D.p.dob+'T12:00'), t = new Date();
+ let a = t.getFullYear() - b.getFullYear();
+ if(t.getMonth() < b.getMonth() || (t.getMonth() === b.getMonth() && t.getDate() < b.getDate())) a--;
+ return a + ' anos';
+}
+
+function getLatestWeight(){
+ const h = (D.wh||[]).filter(x=>+x.kg>0).sort((a,b)=>a.d<b.d?-1:1);
+ return h.length ? +h[h.length-1].kg : (+D.p.kg||0);
+}
+
 function vH0(){const s=S(),p=D.p,ne=RK2.find(x=>x[0]>s.lv),mx=s.lv>=XM,cur=CXP(s.lv),nx=mx?cur:CXP(s.lv+1),pc=mx?100:Math.min(100,(s.xp-cur)/(nx-cur)*100);
  const rk=stg(s.lv),r0=CXP(rk[0]),r1=ne?CXP(ne[0]):0,pr=ne?Math.min(100,Math.max(0,(s.xp-r0)/(r1-r0)*100)):100;
- const inf=p.kg?`${fm(p.kg)} kg${p.age?' · '+fm(p.age)+' anos':''} · ${fm(p.cm)} cm ✎`:'Definir perfil ✎';
+ const curKg = getLatestWeight(), ageTxt = getAge();
+ const inf=curKg?`${fm(curKg)} kg${ageTxt?' · '+ageTxt:''} · ${fm(p.cm)} cm ✎`:'Definir perfil ✎';
  const mCol=BG.mode==='atrophy'?'255,77,109':BG.mode==='deload'?'255,209,102':BG.mode==='streak'?'255,204,51':'56,189,248';
  return`<div class="flex items-start justify-between gap-3"><div><h1 class="text-2xl font-bold text-[#38bdf8]" style="text-shadow:0 0 14px #38bdf899">GYM RPG <span class="text-xs text-zinc-400 align-middle">Midina</span></h1><div class="text-xs text-zinc-400">A Ascensão da Valquíria</div></div><button class="text-right leading-tight" onclick="pe=!pe;R()"><div class="text-xs text-zinc-400">${inf}</div><div class="text-xs mt-1 font-semibold text-[#38bdf8]/80">${s.t} · Nv ${s.lv}</div></button></div>
- ${pe||!p.kg?`<div class="c"><div class="grid grid-cols-3 gap-2 text-xs">${[['kg','Peso (kg)',p.kg],['cm','Altura (cm)',p.cm],['ag','Idade',p.age]].map(([k,n,v])=>`<label>${n}<input id="${k}" class="i mt-1" inputmode="decimal" value="${v?fm(v):''}"></label>`).join('')}</div><button class="b w-full mt-3" onclick="sp()">Guardar perfil</button></div>`:''}
+ ${pe||!curKg?`<div class="c"><div class="grid grid-cols-3 gap-2 text-xs"><label>Peso (kg)<input id="kg" class="i mt-1" inputmode="decimal" value="${curKg?fm(curKg):''}"></label><label>Altura (cm)<input id="cm" class="i mt-1" inputmode="decimal" value="${p.cm?fm(p.cm):''}"></label><label>Nascimento<input id="dob" type="date" class="i mt-1" value="${p.dob||''}"></label></div><button class="b w-full mt-3" onclick="sp()">Guardar perfil</button></div>`:''}
  <div class="c text-center"><div class="flex items-end justify-between"><div class="text-left"><div class="text-xs text-zinc-400">Nível</div><div class="text-4xl font-bold text-[#38bdf8]" style="text-shadow:0 0 16px #38bdf899">${s.lv}</div></div><div class="text-right"><div class="text-xs text-zinc-400">Rank · Fase ${fase(s.lv)}/10</div><div class="font-semibold">${s.t}</div></div></div>
  <div id="heroBox" class="hero-box relative mx-auto mt-3 w-full max-w-[360px] aspect-[2/3] rounded-2xl overflow-hidden border border-[#38bdf8]/35" style="--aura-glow:rgba(${mCol},.55);--aura-bot:rgba(${mCol},.35);box-shadow:0 0 ${(18+pr*.42).toFixed(0)}px rgba(${mCol},${(.22+pr*.005).toFixed(2)})">
- <img id="iF" alt="Avatar de frente" class="av absolute inset-0 w-full h-full object-cover z-10">
-<img id="iB" alt="Avatar de costas" class="av absolute inset-0 w-full h-full object-cover z-10" style="opacity:0">
-<video id="iV" class="av absolute inset-0 w-full h-full object-cover z-10" muted loop playsinline autoplay preload="auto" disablepictureinpicture style="opacity:0"></video>
+  <img id="iF" alt="Avatar de frente" class="av absolute inset-0 w-full h-full object-cover z-10">
+  <img id="iB" alt="Avatar de costas" class="av absolute inset-0 w-full h-full object-cover z-10" style="opacity:0">
+  <video id="iV" class="av absolute inset-0 w-full h-full object-cover z-10" muted loop playsinline autoplay preload="auto" disablepictureinpicture style="opacity:0"></video>
   <canvas id="heroAuraCv" class="absolute inset-0 w-full h-full z-20" style="mix-blend-mode:screen;touch-action:pan-y"></canvas>
  </div>
  <div class="flex gap-2 mt-3 max-w-[360px] mx-auto"><button id="btnV" onclick="tf('video')">▶ VÍDEO</button><button id="btnF" onclick="tf('frente')">FRENTE</button><button id="btnC" onclick="tf('costas')">COSTAS</button></div>
@@ -388,7 +402,17 @@ function vH0(){const s=S(),p=D.p,ne=RK2.find(x=>x[0]>s.lv),mx=s.lv>=XM,cur=CXP(s
  ${vRunKm()}
  <div class="grid grid-cols-2 gap-2">${Object.keys(L).map((k,i)=>`<div class="c"><div class="text-xl">${IC[i]}</div><div class="text-xs text-zinc-400">${L[k]} · 1RM</div><div class="text-2xl font-bold text-[#38bdf8]">${s.b[k]?fm(s.b[k]):'—'}<span class="text-sm"> kg</span></div></div>`).join('')}</div>
  <p class="text-xs text-zinc-500">XP por treino = Σ(Peso × Repetições) ÷ 10. Nas flexões, abdominais e lombar o Peso é o peso corporal + lastro; a corrida e o cardio ganham XP pelos minutos. 🔥 Streak: ${STK_META} dias de treino seguidos, com no máximo ${STK_GAP-1} dias de pausa (+5% XP).</p>`}
-function sp(){let kg=pn($('#kg').value),cm=pn($('#cm').value);if(cm&&cm<3)cm*=100;if(kg<30||kg>300||cm<100||cm>250)return toast('Verifica o peso (kg) e a altura (cm).');wInit();const k0=+D.p.kg;D.p={kg,cm,age:pn($('#ag').value)};if(kg!==k0)wSet(td(),kg);save();pe=0;R();toast('Perfil guardado')}
+
+function sp(){
+ let kg=pn($('#kg').value),cm=pn($('#cm').value),dob=($('#dob')||{}).value||'';
+ if(cm&&cm<3)cm*=100;
+ if(kg<30||kg>300||cm<100||cm>250)return toast('Verifica o peso (kg) e a altura (cm).');
+ wInit();
+ const k0=getLatestWeight();
+ D.p={kg,cm,dob,age:D.p.age};
+ if(kg!==k0)wSet(td(),kg);
+ save();pe=0;R();toast('Perfil guardado');
+}
 
 function last(n){const z=nz(n),c=cd(n);for(let j=D.ss.length-1;j>=0;j--){const s=D.ss[j],e=s.ex.find(x=>nz(x.n)==z);if(e){const[w,r]=c?e.s[0]:e.s.reduce((a,c)=>rm(...c)>rm(...a)?c:a),df=(Date.now()-Date.parse(s.d))/864e5;return`${df>=5&&df<=9?'Semana passada':'Última sessão ('+fd(s.d)+')'}: ${c?c[2](w,r):`${fm(w)}kg × ${r} reps`}`}}return''}
 function vT(){const dr=draft[day]=draft[day]||{},baseLen=(PL[day]||[]).length;
@@ -585,8 +609,7 @@ const vD=()=>vDuoCfg()+vCloud()+vInst()+vD0();
 function wInit(){if(!Array.isArray(D.wh))D.wh=[];if(!D.wh.length&&+D.p.kg>0){const d=D.ss.length?D.ss.map(x=>x.d).filter(Boolean).sort()[0]:td();D.wh.push({d,kg:+D.p.kg})}}
 function wAt(d){const h=(D.wh||[]).filter(x=>+x.kg>0).sort((a,b)=>a.d<b.d?-1:1);let v=null;h.forEach(x=>{if(x.d<=d)v=+x.kg});return v!=null?v:(h[0]?+h[0].kg:(+D.p.kg||0))}
 function swt(s){return +s.kg>0?+s.kg:wAt(s.d)}
-function wCur(){const h=(D.wh||[]).filter(x=>x.d<=td()&&+x.kg>0).sort((a,b)=>a.d<b.d?-1:1);if(h.length)D.p.kg=+h[h.length-1].kg}
-function mergeWh(a,b){const m={};(a||[]).concat(b||[]).forEach(x=>{if(x&&x.d&&+x.kg>0)m[x.d]={d:x.d,kg:+x.kg}});return Object.values(m).sort((p,q)=>p.d<q.d?-1:1)}
+function wCur(){const h=(D.wh||[]).filter(x=>+x.kg>0).sort((a,b)=>a.d<b.d?-1:1);if(h.length)D.p.kg=+h[h.length-1].kg}function mergeWh(a,b){const m={};(a||[]).concat(b||[]).forEach(x=>{if(x&&x.d&&+x.kg>0)m[x.d]={d:x.d,kg:+x.kg}});return Object.values(m).sort((p,q)=>p.d<q.d?-1:1)}
 function wSet(d,kg){wInit();D.wh=mergeWh(D.wh.filter(x=>x.d!==d),[{d,kg:Math.round(kg*10)/10}]);wCur()}
 function wDel(d){if(D.wh.length<=1)return toast('Tem de ficar pelo menos um registo.');if(!confirm('Apagar o registo de peso de '+fd(d)+'?'))return;D.wh=D.wh.filter(x=>x.d!==d);wCur();save();R()}
 function wAdd(){const kg=pn(($('#wk')||{}).value),d=/^\d{4}-\d{2}-\d{2}$/.test(($('#wdt')||{}).value||'')?$('#wdt').value:td();if(!(kg>=30&&kg<=300))return toast('Verifica o peso (30 a 300 kg).');wSet(d,kg);save();R();toast('Peso registado')}
