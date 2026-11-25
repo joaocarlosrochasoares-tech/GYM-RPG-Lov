@@ -204,19 +204,32 @@ async function vsrc(k){
 }
 
 function vis(){
- const v = $('#iV'); if(!v) return;
+ const v = $('#iV'), elF = $('#iF'), elB = $('#iB');
+ if(!v || !elF || !elB) return;
  const hv = hasV(CK);
  const f = (face === 'video' && !hv) ? 'frente' : face;
- 
- const elF = $('#iF'); const elB = $('#iB');
- if(elF) elF.style.opacity = (f === 'frente') ? '1' : '0';
- if(elB) elB.style.opacity = (f === 'costas') ? '1' : '0';
- if(v) v.style.opacity = (f === 'video') ? '1' : '0';
 
  if(f === 'video') {
-  v.play().catch(() => {});
+  elB.style.opacity = '0';
+  // Mantém a foto de frente visível por baixo até o vídeo estar realmente a reproduzir
+  if(v.readyState >= 2 && !v.paused) {
+   v.style.opacity = '1';
+   elF.style.opacity = '0';
+  } else {
+   elF.style.opacity = '1';
+   v.style.opacity = '0';
+   v.play().then(() => {
+    if(face === 'video' && $('#iV') === v) {
+     v.style.opacity = '1';
+     elF.style.opacity = '0';
+    }
+   }).catch(() => {});
+  }
  } else {
   v.pause();
+  v.style.opacity = '0';
+  elF.style.opacity = (f === 'frente') ? '1' : '0';
+  elB.style.opacity = (f === 'costas') ? '1' : '0';
  }
 
  [['btnV','video'],['btnF','frente'],['btnC','costas']].forEach(([id,x])=>{
@@ -237,13 +250,17 @@ function ap(){
   const i = $(q);
   if(i) {
    i.onerror = () => { i.onerror = null; i.src = fb(w); };
-   i.src = asrc(w, l);
+   if(i.getAttribute('src') !== asrc(w, l)) i.src = asrc(w, l);
   }
  });
 
  if(v) {
   v.muted = true;
+  v.defaultMuted = true;
+  v.playsInline = true;
   v.poster = asrc('frente', l);
+  v.onloadeddata = () => { if(face === 'video' && $('#iV') === v) vis(); };
+  v.onplaying = () => { if(face === 'video' && $('#iV') === v) { v.style.opacity = '1'; if($('#iF')) $('#iF').style.opacity = '0'; } };
   v.onerror = () => { VBAD.add(k); vis(); };
  }
  
@@ -255,7 +272,6 @@ function ap(){
    if(!u) { VBAD.add(k); vis(); return; }
    if(v.getAttribute('src') !== u) {
     v.src = u;
-    v.load(); // Força o browser a carregar o novo vídeo sem conflitos
    }
    if(face === 'video') {
     v.play().catch(() => {});
@@ -388,7 +404,7 @@ function vH0(){const s=S(),p=D.p,ne=RK2.find(x=>x[0]>s.lv),mx=s.lv>=XM,cur=CXP(s
  <div id="heroBox" class="hero-box relative mx-auto mt-3 w-full max-w-[360px] aspect-[2/3] rounded-2xl overflow-hidden border border-[#38bdf8]/35" style="--aura-glow:rgba(${mCol},.55);--aura-bot:rgba(${mCol},.35);box-shadow:0 0 ${(18+pr*.42).toFixed(0)}px rgba(${mCol},${(.22+pr*.005).toFixed(2)})">
   <img id="iF" alt="Avatar de frente" class="av absolute inset-0 w-full h-full object-cover z-10">
   <img id="iB" alt="Avatar de costas" class="av absolute inset-0 w-full h-full object-cover z-10" style="opacity:0">
-  <video id="iV" class="av absolute inset-0 w-full h-full object-cover z-10" muted loop playsinline autoplay preload="auto" disablepictureinpicture style="opacity:0"></video>
+  <video id="iV" class="av absolute inset-0 w-full h-full object-contain z-10" muted loop playsinline autoplay preload="auto" disablepictureinpicture style="opacity:0;transform:scale(2.8) translateY(-0.46%)"></video>
   <canvas id="heroAuraCv" class="absolute inset-0 w-full h-full z-20" style="mix-blend-mode:screen;touch-action:pan-y"></canvas>
  </div>
  <div class="flex gap-2 mt-3 max-w-[360px] mx-auto"><button id="btnV" onclick="tf('video')">▶ VÍDEO</button><button id="btnF" onclick="tf('frente')">FRENTE</button><button id="btnC" onclick="tf('costas')">COSTAS</button></div>
@@ -567,7 +583,7 @@ async function cloudPull(){const f=await gFind(),lk='gymrpg-midina-linked-'+(CL.
  if(!CL.dirty)lss('gymrpg-midina-base',String(D.ts||0));lss(lk,'1')}
 async function doPush(){if(!CL.dirty||!CL.tok||!CL.ready)return;CL.dirty=false;setSt('sync');try{let r;if(CL.fid)r=await gapi(GA+'upload/drive/v3/files/'+CL.fid+'?uploadType=media&fields=id,modifiedTime',{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify(D)});else{const b='gymB'+Date.now();r=await gapi(GA+'upload/drive/v3/files?uploadType=multipart&fields=id,modifiedTime',{method:'POST',headers:{'Content-Type':'multipart/related; boundary='+b},body:`--${b}\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n${JSON.stringify({name:'gymrpg-midina.json',parents:['appDataFolder']})}\r\n--${b}\r\nContent-Type: application/json\r\n\r\n${JSON.stringify(D)}\r\n--${b}--`})}const j=await r.json();CL.fid=j.id;CL.mt=j.modifiedTime;lss('gymrpg-midina-base',String(D.ts||0));setSt('ok')}catch(e){CL.dirty=true;if(CL.st!='expired')setSt('err',e.message)}}
 function cloudPush(){if(!CL||!CL.tok)return;CL.dirty=true;if(!CL.ready)return;clearTimeout(CL.t);CL.t=setTimeout(doPush,1500)}
-async function cloudPoll(){if(!CL.ready||!CL.tok||document.hidden)return;try{const f=await gFind();if(f&&f.modifiedTime!==CL.mt){await cloudPull();await doPush();if(V!='t')R()}}catch(e){}}
+async function cloudPoll(){if(!CL.ready||!CL.tok||document.hidden)return;try{const f=await gFind();if(f&&f.modifiedTime!==CL.mt){await cloudPull();await doPush();if(V==='n')R()}}catch(e){}}
 async function startSync(){setSt('sync');CL.ready=false;try{await cloudPull();CL.ready=true;if(CL.dirty)await doPush();else setSt('ok');clearInterval(CL.pl);CL.pl=setInterval(cloudPoll,20000)}catch(e){if(CL.st!='expired')setSt('err',e.message)}R()}
 async function onTok(r){if(!r||r.error)return setSt('err',(r&&(r.error_description||r.error))||'Login cancelado');CL.tok=r.access_token;CL.exp=Date.now()+(+r.expires_in||3600)*1000-60000;try{const u=await(await fetch(GA+'oauth2/v3/userinfo',{headers:{Authorization:'Bearer '+CL.tok}})).json();CL.email=u.email||CL.email}catch(e){}lss('gymrpg-midina-gacc',CL.email||'1');lss('gymrpg-midina-gtok',JSON.stringify({tok:CL.tok,exp:CL.exp,email:CL.email}));startSync()}
 function gLogin(){if(!okId){V='d';R();return toast('Primeiro mete o Client ID do Google (separador Dados).')}if(!/^https?:$/.test(location.protocol))return toast('Abre o jogo num endereço https (ex.: GitHub Pages) para entrar com Google.');if(!CL.tc)return toast('A biblioteca do Google ainda não carregou. Tenta daqui a pouco.');CL.tc.requestAccessToken({prompt:lsg('gymrpg-midina-gacc')?'':'select_account'})}
