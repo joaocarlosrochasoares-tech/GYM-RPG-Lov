@@ -1044,125 +1044,281 @@ async function duoPoll(force) {
 }
 setInterval(() => duoPoll(false), 15000);
 
-function vDuo(s) {
-  if (!DUO.url) {
-    return `<div class="c flex items-center justify-between gap-2" style="border-color:rgba(255,204,51,.4)">
-      <div class="text-xs text-zinc-300">⚔️ <b>Arena de Casal (João &amp; Midina):</b> Liga os dois jogos no separador <b>Dados</b> para desbloquearem o Cabo de Guerra, o Boss Semanal e notificações em tempo real!</div>
-      <button class="b text-xs shrink-0" onclick="V='d';R()">Ligar</button>
+// === SISTEMA DE APOSTAS DA SEMANA (ARENA DE CASAL) ===
+function getBetData() {
+  if (!DUO.stake) return { text: '', proposedBy: '', status: 'empty', lastMsg: {} };
+  if (typeof DUO.stake === 'object') return DUO.stake;
+  try {
+    const parsed = JSON.parse(DUO.stake);
+    if (parsed && typeof parsed === 'object') return parsed;
+  } catch (e) {}
+  return { text: String(DUO.stake), proposedBy: '', status: 'negotiating', lastMsg: {} };
+}
+
+function saveBetData(b) {
+  DUO.stake = JSON.stringify(b);
+  localStorage.setItem(DUO_KEY, JSON.stringify(DUO));
+  duoPushWorkout(null, null, S()).then(() => duoPoll(true));
+  R();
+}
+
+function betPropose() {
+  const txt = ($('#betInput')?.value || '').trim();
+  if (!txt) return toast('Escreve primeiro a proposta de aposta!');
+  const me = DUO.me || 'João';
+  const b = getBetData();
+  b.text = txt;
+  b.proposedBy = me;
+  b.status = 'negotiating';
+  saveBetData(b);
+  toast('Proposta enviada!');
+}
+
+function betSendChat() {
+  const inp = $('#betChatInp');
+  const msg = (inp?.value || '').trim();
+  if (!msg) return;
+  const me = DUO.me || 'João';
+  const b = getBetData();
+  if (b.status === 'locked') return;
+  if (b.status === 'empty') b.status = 'negotiating';
+  b.lastMsg = b.lastMsg || {};
+  b.lastMsg[me] = {
+    msg,
+    t: new Date().toLocaleTimeString('pt-PT', { hour: '2-digit', minute: '2-digit' })
+  };
+  inp.value = '';
+  saveBetData(b);
+}
+
+function betAccept() {
+  const me = DUO.me || 'João';
+  const b = getBetData();
+  if (!b.text) return;
+  if (b.proposedBy === me) return toast('Tem de ser o outro a aceitar a tua proposta!');
+  b.status = 'locked';
+  b.acceptedBy = me;
+  saveBetData(b);
+  toast('🔒 Aposta fechada até Sexta às 23:59!');
+}
+
+function betConfirmSettled(winnerName) {
+  const me = DUO.me || 'João';
+  if (winnerName !== me) return toast('Apenas o vencedor pode confirmar a conclusão!');
+  saveBetData({ text: '', proposedBy: '', status: 'empty', lastMsg: {} });
+  toast('🏆 Aposta concluída! Espaço aberto para nova aposta.');
+}
+
+function renderWeeklyBetCard(weekEnded, winnerName, peerName) {
+  const me = DUO.me || 'João';
+  const b = getBetData();
+  const outro = peerName || (me === 'João' ? 'Midina' : 'João');
+
+  // FASE 3: Sexta 23:59 passou (Sábado/Domingo) -> Aguardar vencedor confirmar cumprimento
+  if (b.status === 'locked' && weekEnded) {
+    const souVencedor = (winnerName === me);
+    return `
+    <div class="rounded-xl bg-amber-950/25 border border-amber-400/50 p-2.5 space-y-2">
+      <div class="flex justify-between items-center">
+        <b class="text-amber-400 text-xs">🏆 Aposta Pendente de Conclusão</b>
+        <span class="text-[10px] px-2 py-0.5 rounded bg-amber-500/20 text-amber-300">Fim de Semana</span>
+      </div>
+      <div class="p-2.5 rounded-lg bg-black/40 border border-white/10 text-xs font-semibold text-white">
+        "${esc(b.text)}"
+      </div>
+      ${souVencedor
+        ? `<button class="b w-full text-xs" onclick="betConfirmSettled('${esc(winnerName)}')">✅ Confirmar que ${esc(outro)} cumpriu a aposta</button>
+           <div class="text-[10px] text-zinc-400 text-center">Só depois de confirmares abre espaço para a próxima aposta.</div>`
+        : `<div class="text-[11px] text-amber-200/80 text-center py-1.5 bg-black/30 rounded-lg">
+             ⏳ À espera que <b>${esc(winnerName === 'Empate' ? outro : winnerName)}</b> confirme que cumpriste a aposta.
+           </div>`
+      }
     </div>`;
   }
 
-  const my = getMyWeekStats(s);
-  const p = DUO.peer;
-  const peerActiveWk = p && p.wk === my.wk;
-  const pRel = peerActiveWk ? (+p.rel || 0) : 0;
-  const pXP  = peerActiveWk ? (+p.wkXP || 0) : 0;
-  const pVol = peerActiveWk ? (+p.wkVol || 0) : 0;
-  const pKm  = peerActiveWk ? (+p.wkKm || 0) : 0;
-  const pTr  = peerActiveWk ? (+p.wkTrades || 0) : 0;
-
-  const totRel = my.rel + pRel;
-  const myPct = totRel > 0 ? Math.min(92, Math.max(8, Math.round((my.rel / totRel) * 100))) : 50;
-  const leader = my.rel > pRel ? DUO.me : pRel > my.rel ? (p ? p.name : 'Parceiro') : 'Empate';
-
-  let myWins = 0, peerWins = 0;
-  Object.entries(DUO.hist || {}).forEach(([wkKey, obj]) => {
-    if (+wkKey >= my.wk || !obj || !p) return;
-    const rm = obj[DUO.me] ? (+obj[DUO.me].rel || 0) : 0;
-    const rp = obj[p.name] ? (+obj[p.name].rel || 0) : 0;
-    if (rm > rp) myWins++; else if (rp > rm) peerWins++;
-  });
-
-  const [rawBossName, baseHP] = BOSSES[Math.abs(my.wk) % BOSSES.length];
-  const tier = Math.max(1, +DUO.bossTier || 1);
-  const bossName = `${rawBossName} · Nv ${tier}`;
-  const bossMaxHP = Math.round(baseHP * Math.pow(1.25, tier - 1));
-  const dmgTotal = my.wkXP + pXP;
-  const bossHP = Math.max(0, bossMaxHP - dmgTotal);
-  const bossPct = Math.max(0, Math.min(100, (bossHP / bossMaxHP) * 100));
-  const bossDead = bossHP === 0;
-  const claimed = !!(DUO.claims && DUO.claims[my.wk + '|' + DUO.me]);
-
-  return `<div class="c space-y-3" style="border-color:rgba(255,204,51,.55);box-shadow:0 0 26px rgba(255,204,51,.12)">
-    <div class="flex justify-between items-center gap-2">
-      <div>
-        <b class="text-[#ffd166] text-base">⚔️ Arena de Casal · Versus &amp; Co-Op</b>
-        <div class="text-[11px] text-zinc-400">🏆 Taça Anual de Semanas: <b class="text-white">${esc(DUO.me)} ${myWins}</b> – <b class="text-white">${peerWins} ${esc(p ? p.name : 'Parceiro')}</b></div>
-      </div>
-      <button class="g text-xs py-1 px-2.5" onclick="duoPushWorkout(null,null,S()).then(()=>duoPoll(true))">🔄 Sincronizar</button>
-    </div>
-
-    <div class="rounded-xl bg-black/35 border border-white/10 p-2.5">
-      <div class="text-[10px] uppercase tracking-wider text-[#ffd166]">🎁 Aposta / Prémio da Semana</div>
-      <div class="flex gap-1.5 mt-1">
-        <input id="duoStakeInp" class="i text-xs" placeholder="Ex: Quem perder faz massagem / Se matarmos o Boss vamos jantar..." value="${esc(DUO.stake)}">
-        <button class="g text-xs px-3 shrink-0" onclick="duoSaveStake()">Guardar</button>
-      </div>
-    </div>
-
-    <div class="grid grid-cols-2 gap-2 text-center">
-      <div class="rounded-xl bg-black/30 border border-[#38bdf8]/40 p-2.5">
-        <div class="text-xs text-[#38bdf8] font-bold">👤 ${esc(DUO.me)} (Tu)</div>
-        <div class="text-lg font-bold mt-0.5">Nv ${s.lv} <span class="text-xs font-normal text-zinc-400">· 🔥 ${s.stk}d</span></div>
-        <div class="text-xs text-[#ffd166] font-bold mt-1">⚖️ ${fm(my.rel)}× esforço</div>
-        <div class="text-[11px] text-zinc-400">${my.wkTrades} tr · ${fx(my.wkVol)} kg${my.wkKm?` · 🏃 ${fm(my.wkKm)} km`:''}</div>
-      </div>
-      ${p ? `<div class="rounded-xl bg-black/30 border border-[#39ff88]/40 p-2.5">
-        <div class="text-xs text-[#39ff88] font-bold">⚔️ ${esc(p.name)}</div>
-        <div class="text-lg font-bold mt-0.5">Nv ${p.lv} <span class="text-xs font-normal text-zinc-400">· 🔥 ${p.stk}d</span></div>
-        <div class="text-xs text-[#ffd166] font-bold mt-1">⚖️ ${fm(pRel)}× esforço</div>
-        <div class="text-[11px] text-zinc-400">${pTr} tr · ${fx(pVol)} kg${pKm?` · 🏃 ${fm(pKm)} km`:''}</div>
-      </div>` : `<div class="rounded-xl bg-black/30 border border-white/10 p-2.5 flex items-center justify-center text-xs text-zinc-500">A aguardar sincronização do parceiro na sala "${esc(DUO.room)}"…</div>`}
-    </div>
-
-    <div class="space-y-1">
-      <div class="flex justify-between text-[11px]">
-        <span class="text-zinc-400">⚖️ <b>Cabo de Guerra</b> (Volume + Corrida ÷ Peso)</span>
-        <span class="text-[#ffd166] font-semibold">${leader === 'Empate' ? '⚡ Empate técnico!' : '👑 ' + esc(leader) + ' lidera a semana!'}</span>
-      </div>
-      <div class="h-3.5 w-full rounded-full overflow-hidden flex bg-black/50 p-0.5 border border-white/15">
-        <div style="width:${myPct}%;background:linear-gradient(90deg,#0284c7,#38bdf8);transition:width .5s" class="h-full rounded-l-full"></div>
-        <div style="width:${100 - myPct}%;background:linear-gradient(90deg,#39ff88,#16a34a);transition:width .5s" class="h-full rounded-r-full"></div>
-      </div>
-      <div class="flex justify-between text-[10px] text-zinc-400">
-        <span>${esc(DUO.me)}: ${myPct}% (${fm(my.rel)}×)</span>
-        <span>${esc(p ? p.name : 'Parceiro')}: ${100 - myPct}% (${fm(pRel)}×)</span>
-      </div>
-    </div>
-
-    <div class="rounded-xl bg-black/40 border ${bossDead ? 'border-[#38bdf8]' : 'border-[#ff4d6d]/45'} p-2.5 space-y-1.5">
+  // FASE 2: Aposta Aceite e Fechada (Segunda a Sexta)
+  if (b.status === 'locked') {
+    return `
+    <div class="rounded-xl bg-black/35 border border-emerald-400/45 p-2.5 space-y-1.5">
       <div class="flex justify-between items-center">
-        <b class="text-xs ${bossDead ? 'text-[#38bdf8]' : 'text-[#ff8fa3]'}">${bossName} ${bossDead ? '· DERROTADO! 🎉' : '· Raid Cooperativa'}</b>
-        <span class="text-xs font-bold">${fx(bossHP)} / ${fx(bossMaxHP)} HP</span>
+        <b class="text-emerald-400 text-xs">🔒 Aposta Fechada da Semana</b>
+        <span class="text-[10px] px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-300">Em Curso</span>
       </div>
-      <div class="h-3 w-full bg-white/10 rounded-full overflow-hidden">
-        <div class="h-full transition-all duration-500" style="width:${bossPct}%;background:linear-gradient(90deg,#c9184a,#ff4d6d);box-shadow:0 0 10px #ff4d6d"></div>
+      <div class="p-2.5 rounded-lg bg-black/40 border border-emerald-500/20 text-xs font-semibold text-white">
+        "${esc(b.text)}"
       </div>
-      <div class="flex justify-between items-center text-[11px] text-zinc-400">
-        <span>Dano causado juntos: <b class="text-white">${fx(dmgTotal)}</b> (${esc(DUO.me)} ${fx(my.wkXP)} + ${esc(p ? p.name : 'Parceiro')} ${fx(pXP)})</span>
-        ${bossDead ? (claimed ? `<span class="text-[#38bdf8] font-bold">✅ +200 XP recebidos</span>` : `<button class="b text-xs py-1 px-2.5 animate-bounce" onclick="duoClaimBoss(${my.wk})">🎁 Abrir Baú (+200 XP)</button>`) : ''}
+      <div class="text-[10px] text-zinc-400 flex justify-between">
+        <span>Proposta por: <b>${esc(b.proposedBy || '—')}</b></span>
+        <span>Fecha Sexta às 23:59</span>
+      </div>
+    </div>`;
+  }
+
+  // FASE 1: Negociação (Aposta em causa + apenas última mensagem de cada um)
+  const possoAceitar = (b.status === 'negotiating' && b.proposedBy && b.proposedBy !== me);
+  const lm = b.lastMsg || {};
+  const msgMinha = lm[me];
+  const msgOutro = lm[outro];
+
+  return `
+  <div class="rounded-xl bg-black/35 border border-white/10 p-2.5 space-y-2">
+    <div class="flex justify-between items-center">
+      <span class="text-[10px] uppercase tracking-wider text-[#ffd166] font-bold">🎁 Aposta / Prémio da Semana</span>
+      <span class="text-[10px] px-2 py-0.5 rounded bg-white/10 text-zinc-300">
+        ${b.status === 'negotiating' ? '💬 Em negociação' : '✍️ Sem aposta'}
+      </span>
+    </div>
+
+    <div class="p-2 rounded-lg bg-black/40 border border-white/10">
+      <div class="text-[10px] text-zinc-400">
+        ${b.text ? `Aposta em causa (proposta por <b>${esc(b.proposedBy)}</b>):` : 'Nenhuma aposta proposta ainda'}
+      </div>
+      <div class="text-xs font-semibold text-white mt-0.5">
+        ${b.text ? `"${esc(b.text)}"` : '—'}
       </div>
     </div>
 
-    <div class="space-y-1">
-      <div class="text-[10px] uppercase tracking-wider text-zinc-400">⚡ Enviar Alerta Instantâneo ao Parceiro</div>
-      <div class="grid grid-cols-3 gap-1.5">
-        <button class="g text-xs py-1.5 px-2 truncate" onclick="duoSendTaunt('fire')">🔥 Bora treinar!</button>
-        <button class="g text-xs py-1.5 px-2 truncate" onclick="duoSendTaunt('crown')">👑 Grande treino!</button>
-        <button class="g text-xs py-1.5 px-2 truncate" onclick="duoSendTaunt('eyes')">👀 Passei-te!</button>
+    ${possoAceitar ? `
+      <button class="b w-full text-xs" onclick="betAccept()">🤝 Aceitar Aposta e Fechar Semana</button>
+    ` : (b.status === 'negotiating' && b.proposedBy === me) ? `
+      <div class="text-[10px] text-amber-300/90 text-center">⏳ À espera que <b>${esc(outro)}</b> aceite ou responda...</div>
+    ` : ''}
+
+    ${(msgMinha || msgOutro) ? `
+      <div class="space-y-1">
+        ${msgMinha ? `
+          <div class="text-[11px] py-1 px-2 rounded-lg bg-[#39ff88]/10 border border-[#39ff88]/25">
+            <div class="flex justify-between text-[10px] text-[#39ff88] font-bold"><span>${esc(me)}</span><span>${msgMinha.t}</span></div>
+            <div class="text-zinc-100">${esc(msgMinha.msg)}</div>
+          </div>` : ''}
+        ${msgOutro ? `
+          <div class="text-[11px] py-1 px-2 rounded-lg bg-[#38bdf8]/10 border border-[#38bdf8]/25">
+            <div class="flex justify-between text-[10px] text-[#38bdf8] font-bold"><span>${esc(outro)}</span><span>${msgOutro.t}</span></div>
+            <div class="text-zinc-100">${esc(msgOutro.msg)}</div>
+          </div>` : ''}
       </div>
+    ` : ''}
+
+    <div class="flex gap-1.5">
+      <input id="betChatInp" class="i text-xs flex-1" placeholder="A tua mensagem de negociação..." onkeydown="if(event.key==='Enter')betSendChat()">
+      <button class="g text-xs px-2.5 shrink-0" onclick="betSendChat()">Enviar</button>
     </div>
 
-    ${DUO.feed.length ? `<div class="space-y-1 pt-2 border-t border-white/10">
-      <div class="text-[10px] uppercase tracking-wider text-zinc-400">🔔 Mural de Atividade em Tempo Real</div>
-      ${DUO.feed.slice(0, 6).map(e => `<div class="text-xs flex justify-between items-center gap-2 py-1 border-b border-white/5">
-        <span class="truncate">${e.type === 'taunt' || e.type === 'boss' ? esc(e.text) : `<b class="${e.who === DUO.me ? 'text-zinc-300' : 'text-[#ffd166]'}">${e.who === DUO.me ? '🏋️ Tu' : '⚔️ ' + esc(e.who)}</b> concluiu <b>${esc(e.day)}</b> (${e.km > 0 ? '🏃 ' + fm(e.km) + ' km' : fx(e.vol) + ' kg'})${e.pr ? ' 🏅' : ''}`}</span>
-        <span class="text-[11px] text-zinc-400 shrink-0">${e.xp ? '+' + fx(e.xp) + ' XP · ' : ''}${fd(e.d || td())}</span>
-      </div>`).join('')}
-    </div>` : ''}
+    <div class="flex gap-1.5 pt-1.5 border-t border-white/10">
+      <input id="betInput" class="i text-xs flex-1" placeholder="Definir aposta em causa..." value="${esc(b.text || '')}">
+      <button class="b text-xs px-2.5 shrink-0" onclick="betPropose()">Propor</button>
+    </div>
   </div>`;
 }
 
+function vDuo(s){
+ if(!DUO.url){
+  return`<div class="c flex items-center justify-between gap-2" style="border-color:rgba(255,204,51,.4)">
+   <div class="text-xs text-zinc-300">⚔️ <b>Arena de Casal (João &amp; Midina):</b> Liga os dois jogos no separador <b>Dados</b> para desbloquearem o Cabo de Guerra, o Boss Semanal e notificações em tempo real!</div>
+   <button class="b text-xs shrink-0" onclick="V='d';R()">Ligar</button>
+  </div>`;
+ }
+ const my=getMyWeekStats(s);
+ const p=DUO.peer;
+ const peerActiveWk=p&&p.wk===my.wk;
+ const pRel=peerActiveWk?(+p.rel||0):0;
+ const pXP=peerActiveWk?(+p.wkXP||0):0;
+ const pVol=peerActiveWk?(+p.wkVol||0):0;
+ const pKm=peerActiveWk?(+p.wkKm||0):0;
+ const pTr=peerActiveWk?(+p.wkTrades||0):0;
+
+ const totRel=my.rel+pRel;
+ const myPct=totRel>0?Math.min(92,Math.max(8,Math.round((my.rel/totRel)*100))):50;
+ const leader=my.rel>pRel?DUO.me:pRel>my.rel?(p?p.name:'Parceiro'):'Empate';
+
+ let myWins=0,peerWins=0;
+ Object.entries(DUO.hist||{}).forEach(([wkKey,obj])=>{
+  if(+wkKey>=my.wk||!obj||!p)return;
+  const rm=obj[DUO.me]?(+obj[DUO.me].rel||0):0;
+  const rp=obj[p.name]?(+obj[p.name].rel||0):0;
+  if(rm>rp)myWins++;else if(rp>rm)peerWins++;
+ });
+
+ const [rawBossName, baseHP] = BOSSES[Math.abs(my.wk) % BOSSES.length];
+ const tier = Math.max(1, +DUO.bossTier || 1);
+ const bossName = `${rawBossName} · Nv ${tier}`;
+ const bossMaxHP = Math.round(baseHP * Math.pow(1.25, tier - 1));
+ const dmgTotal=my.wkXP+pXP;
+ const bossHP=Math.max(0,bossMaxHP-dmgTotal);
+ const bossPct=Math.max(0,Math.min(100,(bossHP/bossMaxHP)*100));
+ const bossDead=bossHP===0;
+ const claimed=!!(DUO.claims&&DUO.claims[my.wk+'|'+DUO.me]);
+
+ const dow = new Date().getDay();
+ const weekEnded = (dow === 6 || dow === 0);
+
+ return`<div class="c space-y-3" style="border-color:rgba(255,204,51,.55);box-shadow:0 0 26px rgba(255,204,51,.12)">
+  <div class="flex justify-between items-center gap-2">
+   <div>
+    <b class="text-[#ffd166] text-base">⚔️ Arena de Casal · Versus &amp; Co-Op</b>
+    <div class="text-[11px] text-zinc-400">🏆 Taça Anual de Semanas: <b class="text-white">${esc(DUO.me)} ${myWins}</b> – <b class="text-white">${peerWins} ${esc(p?p.name:'Parceiro')}</b></div>
+   </div>
+   <button class="g text-xs py-1 px-2.5" onclick="duoPushWorkout(null,null,S()).then(()=>duoPoll(true))">🔄 Sincronizar</button>
+  </div>
+  ${renderWeeklyBetCard(weekEnded, leader, p ? p.name : '')}
+  <div class="grid grid-cols-2 gap-2 text-center">
+   <div class="rounded-xl bg-black/30 border border-[#39ff88]/40 p-2.5">
+    <div class="text-xs text-zinc-300 font-bold">👤 ${esc(DUO.me)} (Tu)</div>
+    <div class="text-lg font-bold mt-0.5">Nv ${s.lv} <span class="text-xs font-normal text-zinc-400">· 🔥 ${s.stk}d</span></div>
+    <div class="text-xs text-[#ffd166] font-bold mt-1">⚖️ ${fm(my.rel)}× esforço</div>
+    <div class="text-[11px] text-zinc-400">${my.wkTrades} treinos · ${fx(my.wkVol)} kg${my.wkKm>0?` · 🏃 ${fm(my.wkKm)} km`:''}</div>
+   </div>
+   ${p?`<div class="rounded-xl bg-black/30 border border-[#38bdf8]/40 p-2.5">
+    <div class="text-xs text-[#38bdf8] font-bold">⚔️ ${esc(p.name)}</div>
+    <div class="text-lg font-bold mt-0.5">Nv ${p.lv} <span class="text-xs font-normal text-zinc-400">· 🔥 ${p.stk}d</span></div>
+    <div class="text-xs text-[#ffd166] font-bold mt-1">⚖️ ${fm(pRel)}× esforço</div>
+    <div class="text-[11px] text-zinc-400">${pTr} treinos · ${fx(pVol)} kg${pKm>0?` · 🏃 ${fm(pKm)} km`:''}</div>
+   </div>`:`<div class="rounded-xl bg-black/30 border border-white/10 p-2.5 flex items-center justify-center text-xs text-zinc-500">A aguardar sincronização do parceiro na sala "${esc(DUO.room)}"…</div>`}
+  </div>
+  <div class="space-y-1">
+   <div class="flex justify-between text-[11px]">
+    <span class="text-zinc-400">⚖️ <b>Cabo de Guerra</b> (Volume + Corrida ÷ Peso)</span>
+    <span class="text-[#ffd166] font-semibold">${leader==='Empate'?'⚡ Empate técnico!':'👑 '+esc(leader)+' lidera a semana!'}</span>
+   </div>
+   <div class="h-3.5 w-full rounded-full overflow-hidden flex bg-black/50 p-0.5 border border-white/15">
+    <div style="width:${myPct}%;background:linear-gradient(90deg,#16a34a,#39ff88);transition:width .5s" class="h-full rounded-l-full"></div>
+    <div style="width:${100-myPct}%;background:linear-gradient(90deg,#38bdf8,#0284c7);transition:width .5s" class="h-full rounded-r-full"></div>
+   </div>
+   <div class="flex justify-between text-[10px] text-zinc-400">
+    <span>${esc(DUO.me)}: ${myPct}% (${fm(my.rel)}×)</span>
+    <span>${esc(p?p.name:'Parceiro')}: ${100-myPct}% (${fm(pRel)}×)</span>
+   </div>
+  </div>
+  <div class="rounded-xl bg-black/40 border ${bossDead?'border-[#39ff88]':'border-[#ff4d6d]/45'} p-2.5 space-y-1.5">
+   <div class="flex justify-between items-center">
+    <b class="text-xs ${bossDead?'text-[#39ff88]':'text-[#ff8fa3]'}">${bossName} ${bossDead?'· DERROTADO! 🎉':'· Raid Cooperativa'}</b>
+    <span class="text-xs font-bold">${fx(bossHP)} / ${fx(bossMaxHP)} HP</span>
+   </div>
+   <div class="h-3 w-full bg-white/10 rounded-full overflow-hidden">
+    <div class="h-full transition-all duration-500" style="width:${bossPct}%;background:linear-gradient(90deg,#c9184a,#ff4d6d);box-shadow:0 0 10px #ff4d6d"></div>
+   </div>
+   <div class="flex justify-between items-center text-[11px] text-zinc-400">
+    <span>Dano conjunto: <b class="text-white">${fx(dmgTotal)}</b> (${esc(DUO.me)} ${fx(my.wkXP)} + ${esc(p?p.name:'Parceiro')} ${fx(pXP)})</span>
+    ${bossDead?(claimed?`<span class="text-[#39ff88] font-bold">✅ +200 XP recebidos</span>`:`<button class="b text-xs py-1 px-2.5 animate-bounce" onclick="duoClaimBoss(${my.wk})">🎁 Abrir Baú (+200 XP)</button>`):''}
+   </div>
+  </div>
+  <div class="space-y-1">
+   <div class="text-[10px] uppercase tracking-wider text-zinc-400">⚡ Enviar Alerta Instantâneo ao Parceiro</div>
+   <div class="grid grid-cols-3 gap-1.5">
+    <button class="g text-xs py-1.5 px-2 truncate" onclick="duoSendTaunt('fire')">🔥 Bora treinar!</button>
+    <button class="g text-xs py-1.5 px-2 truncate" onclick="duoSendTaunt('crown')">👑 Grande treino!</button>
+    <button class="g text-xs py-1.5 px-2 truncate" onclick="duoSendTaunt('eyes')">👀 Passei-te!</button>
+   </div>
+  </div>
+  ${DUO.feed.length?`<div class="space-y-1 pt-2 border-t border-white/10">
+   <div class="text-[10px] uppercase tracking-wider text-zinc-400">🔔 Mural de Atividade em Tempo Real</div>
+   ${DUO.feed.slice(0,6).map(e=>`<div class="text-xs flex justify-between items-center gap-2 py-1 border-b border-white/5">
+    <span class="truncate">${e.type==='taunt'||e.type==='boss'?esc(e.text):`<b class="${e.who===DUO.me?'text-zinc-300':'text-[#ffd166]'}">${e.who===DUO.me?'🏋️ Tu':'⚔️ '+esc(e.who)}</b> concluiu <b>${esc(e.day)}</b> (${e.km>0?'🏃 '+fm(e.km)+' km':fx(e.vol)+' kg'})${e.pr?' 🏅':''}`}</span>
+    <span class="text-[11px] text-zinc-400 shrink-0">${e.xp?'+'+fx(e.xp)+' XP · ':''}${fd(e.d||td())}</span>
+   </div>`).join('')}
+  </div>`:''}
+ </div>`;
+}
 function vDuoCfg() {
   return `<div class="c space-y-2" style="border-color:rgba(255,204,51,.4)">
     <b class="text-[#ffd166]">⚔️ Arena de Casal (Ligação João &amp; Midina)</b>
