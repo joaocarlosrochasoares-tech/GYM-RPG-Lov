@@ -375,6 +375,11 @@ const MUSC_ZONES = {
   ]
 };
 
+const MUSC_CAP = {
+  costas: 8, peito: 8, quadriceps: 9, isquios: 8, gluteos: 8,
+  ombros: 6, biceps: 6, triceps: 6, core: 6, lombar: 6, gemeos: 6
+};
+
 function getMuscleFatigue(){
   const now = Date.now(), st = {};
   D.ss.forEach(s => {
@@ -383,20 +388,24 @@ function getMuscleFatigue(){
     const decay = Math.max(0, 1 - hrs / 72);
     (s.ex || []).forEach(e => {
       const n = nz(e.n);
+      const sets = Math.max(1, (e.s || []).length);
+      const effSets = car(e.n) ? Math.max(sets, 4) : sets;
       MUSC_MAP.forEach(m => {
         if(!m.rx.test(n)) return;
         const apply = (id, mult) => {
-          const load = decay * mult;
-          if(!st[id] || load > st[id].load) st[id] = { load, hrs: Math.round(hrs), ex: e.n };
+          const cap = MUSC_CAP[id] || 8;
+          const add = ((effSets * mult) / cap) * decay;
+          if(!st[id]) st[id] = { load: 0, hrs: Math.round(hrs), ex: e.n };
+          st[id].load = Math.min(1, st[id].load + add);
+          if(hrs < st[id].hrs){ st[id].hrs = Math.round(hrs); st[id].ex = e.n; }
         };
         m.p.forEach(id => apply(id, 1));
-        m.s.forEach(id => apply(id, 0.55));
+        m.s.forEach(id => apply(id, 0.4));
       });
     });
   });
   return st;
 }
-
 function renderScanner(){
   const svg = $('#scanSvg'), hud = $('#scanHud'), elF = $('#iF'), elB = $('#iB');
   if(!svg || !hud) return;
