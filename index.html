@@ -6,6 +6,7 @@
 <script>if('serviceWorker'in navigator&&/^https?:$/.test(location.protocol))addEventListener('load',()=>navigator.serviceWorker.register('sw.js').catch(()=>{}))</script>
 <script>/* Login com Google (opcional): cola aqui o Client ID OAuth, ou preenche-o dentro do jogo em Dados. */window.GYM_CLOUD={clientId:'114168499507-k34ql5rbtp84toedtj87at8jrobjim6j.apps.googleusercontent.com'};</script>
 <script src="https://accounts.google.com/gsi/client" async defer></script>
+<script src="https://cdn.onesignal.com/sdks/web/v16/OneSignalSDK.page.js" defer></script>
 <link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@400;600;700&display=swap" rel="stylesheet">
 <script src="https://cdn.tailwindcss.com/3.4.17"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.js"></script>
@@ -987,6 +988,64 @@ function getMyWeekStats(s){
  const rel=Math.round(((wkVol+wkKm*150+wkCardioEq)/kg)*10)/10;
  return{wk,wkTrades:duelSS.length,wkVol,wkXP,wkKm,kg,rel};
 }
+/* === NOTIFICAÇÕES PUSH EM SEGUNDO PLANO (ONESIGNAL) === */
+const ONESIGNAL_APP_ID = '11ca6332-c030-4123-b9af-aaedb678c531';
+const PUSH_WORKER_URL  = 'https://gym-rpg.joaocarlosrochasoares.workers.dev/';
+const PARTNER_URL      = 'https://github.com/joaocarlosrochasoares-tech/GYM-RPG'; // Ex: no teu mete o link da Midina; no dela mete o teu link
+
+function myPushId(){ return nz(DUO.me || ME_DEFAULT); }
+function partnerPushId(){ return myPushId() === 'joao' ? 'midina' : 'joao'; }
+
+function initPush(){
+  if(!ONESIGNAL_APP_ID || ONESIGNAL_APP_ID.includes('COLA-AQUI')) return;
+  window.OneSignalDeferred = window.OneSignalDeferred || [];
+  OneSignalDeferred.push(async function(OneSignal){
+    try{
+      const dir = location.pathname.replace(/[^/]*$/, '');
+      await OneSignal.init({
+        appId: ONESIGNAL_APP_ID,
+        serviceWorkerPath: (dir + 'push/onesignal/OneSignalSDKWorker.js').replace(/^\//, ''),
+        serviceWorkerParam: { scope: dir + 'push/onesignal/' }
+      });
+      if(OneSignal.Notifications.permission){
+        await OneSignal.login(myPushId());
+      }
+    }catch(e){}
+  });
+}
+
+function enablePush(){
+  if(!ONESIGNAL_APP_ID || ONESIGNAL_APP_ID.includes('COLA-AQUI')){
+    return toast('⚠️ Falta colocar o ONESIGNAL_APP_ID no código.');
+  }
+  window.OneSignalDeferred = window.OneSignalDeferred || [];
+  OneSignalDeferred.push(async function(OneSignal){
+    try{
+      await OneSignal.Notifications.requestPermission();
+      await OneSignal.User.PushSubscription.optIn();
+      await OneSignal.login(myPushId());
+      toast('🔔 Notificações Push ativadas para ' + (DUO.me || ME_DEFAULT) + '!');
+      R();
+    }catch(e){
+      toast('⚠️ Não deu para ativar. No iPhone, adiciona primeiro o jogo ao ecrã principal.');
+    }
+  });
+}
+
+function sendPartnerPush(title, body){
+  if(!PUSH_WORKER_URL || PUSH_WORKER_URL.includes('COLA-AQUI') || !body) return;
+  fetch(PUSH_WORKER_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      to: partnerPushId(),
+      title: title || 'GYM RPG · Arena de Casal',
+      body,
+      url: PARTNER_URL || undefined
+    })
+  }).catch(()=>{});
+}
+
 async function duoPushWorkout(ns, g, s1, customEv) {
   if (!DUO.url) return;
   const st = getMyWeekStats(s1);
@@ -1024,6 +1083,14 @@ async function duoPushWorkout(ns, g, s1, customEv) {
       await fetch(`${base}/events/${ev.ts}.json`, {
         method: 'PUT', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(ev)
       });
+    let pushTxt = '';
+      if (ev.type === 'taunt' || ev.type === 'boss') {
+        pushTxt = ev.text;
+      } else if (ev.type === 'workout') {
+        const det = ev.km > 0 ? `🏃 ${fm(ev.km)} km` : `${fx(ev.vol)} kg`;
+        pushTxt = `⚔️ ${ev.who} concluiu ${ev.day} (${det} · +${fx(ev.xp)} XP)${ev.pr ? ' 🏅 RECORDE!' : ''}`;
+      }
+      sendPartnerPush('GYM RPG · Arena de Casal', pushTxt);
       if (DUO.feed && DUO.feed.length >= 20) {
         DUO.feed.slice(19).forEach(old => {
           if (old && old.ts) fetch(`${base}/events/${old.ts}.json`, { method: 'DELETE' }).catch(()=>{});
@@ -1163,7 +1230,7 @@ function getBetData() {
   return { text: String(DUO.stake), proposedBy: '', status: 'negotiating', lastMsg: {} };
 }
 
-async function saveBetData(b) {
+async function saveBetData(b, pushMsg) {
   DUO.stake = JSON.stringify(b);
   localStorage.setItem(DUO_KEY, JSON.stringify(DUO));
   R();
@@ -1176,18 +1243,19 @@ async function saveBetData(b) {
       });
     } catch (e) {}
   }
+  if (pushMsg) sendPartnerPush('🎲 Aposta da Semana', pushMsg);
   duoPoll(true);
 }
 
 function betPropose() {
   const txt = ($('#betInput')?.value || '').trim();
   if (!txt) return toast('Escreve primeiro a proposta de aposta!');
-  const me = DUO.me || 'João';
+  const me = DUO.me || ME_DEFAULT;
   const b = getBetData();
   b.text = txt;
   b.proposedBy = me;
   b.status = 'negotiating';
-  saveBetData(b);
+  saveBetData(b, `🎲 ${me} propôs uma aposta: "${txt}"`);
   toast('Proposta enviada!');
 }
 
@@ -1195,7 +1263,7 @@ function betSendChat() {
   const inp = $('#betChatInp');
   const msg = (inp?.value || '').trim();
   if (!msg) return;
-  const me = DUO.me || 'João';
+  const me = DUO.me || ME_DEFAULT;
   const b = getBetData();
   if (b.status === 'locked') return;
   if (b.status === 'empty') b.status = 'negotiating';
@@ -1205,27 +1273,26 @@ function betSendChat() {
     t: new Date().toLocaleTimeString('pt-PT', { hour: '2-digit', minute: '2-digit' })
   };
   inp.value = '';
-  saveBetData(b);
+  saveBetData(b, `💬 ${me} (Aposta): "${msg}"`);
 }
 
 function betAccept() {
-  const me = DUO.me || 'João';
+  const me = DUO.me || ME_DEFAULT;
   const b = getBetData();
   if (!b.text) return;
   if (b.proposedBy === me) return toast('Tem de ser o outro a aceitar a tua proposta!');
   b.status = 'locked';
   b.acceptedBy = me;
-  saveBetData(b);
+  saveBetData(b, `🔒 ${me} aceitou a aposta "${b.text}"! A semana está oficialmente lançada.`);
   toast('🔒 Aposta fechada até Sexta às 23:59!');
 }
 
 function betConfirmSettled(winnerName) {
-  const me = DUO.me || 'João';
+  const me = DUO.me || ME_DEFAULT;
   if (winnerName !== me) return toast('Apenas o vencedor pode confirmar a conclusão!');
-  saveBetData({ text: '', proposedBy: '', status: 'empty', lastMsg: {} });
+  saveBetData({ text: '', proposedBy: '', status: 'empty', lastMsg: {} }, `🏆 ${me} confirmou que a aposta foi cumprida! Já podem negociar a próxima.`);
   toast('🏆 Aposta concluída! Espaço aberto para nova aposta.');
 }
-
 function renderWeeklyBetCard(weekEnded, winnerName, peerName) {
   const me = DUO.me || 'João';
   const b = getBetData();
@@ -1447,7 +1514,7 @@ function vDuoCfg() {
     </div>
     <div class="flex gap-2 flex-wrap">
       <button class="b text-xs" onclick="saveDuoCfg()">Guardar e Sincronizar</button>
-      ${'Notification' in window && Notification.permission !== 'granted' ? `<button class="g text-xs" onclick="Notification.requestPermission().then(()=>toast('Alertas ativados no telemóvel!'))">🔔 Ativar Notificações no Telemóvel</button>` : ''}
+      <button class="g text-xs" onclick="enablePush()">🔔 Ativar / Reconectar Notificações Push</button>
     </div>
   </div>`;
 }
@@ -1458,7 +1525,7 @@ function R(){if(ch){ch.destroy();ch=null}
  $('#nav').innerHTML=[['h','⚔️ Herói'],['n','🔔 Notificações'+(al?' •':'')],['t','🏋️ Treino'],['x','📋 Histórico'],['r','📅 Resumo'],['g','📈 Evolução'],['c','🏆 Conquistas'],['d','💾 Dados']].map(([k,n])=>`<button onclick="V='${k}';R();scrollTo(0,0)" class="whitespace-nowrap px-3 py-2 rounded-lg text-sm ${V==k?'b':'g'}">${n}</button>`).join('');
  $('#m').innerHTML=({h:vH,n:vN,t:vT,x:vX,r:vR,g:vG,c:vC,d:vD})[V]();if(V=='g')dc();if(V=='h')ap();if(V=='t'){pm0=pmul();upd()}}
 function boot(){initAppBg();initHeroAura();wInit();try{const z=JSON.parse(localStorage.getItem('gymrpg-midina-draft')||'null');if(z){draft=z.draft||{};dv=z.dv||'';tmpEx=z.tmpEx||{}}}catch(e){}srt();chk();
- save();R();onOpen();bkChk();rvChk();cloudInit();duoPoll(true);
+ save();R();onOpen();bkChk();rvChk();cloudInit();duoPoll(true);duoPoll(true);initPush();
  IDB.keys().then(ks=>{let n=0;(ks||[]).forEach(k=>{const[a,b]=String(k).split('|');if(b=='video'){VX.add(+a);delete VU[+a];n++}});if(n&&(V=='h'||V=='d'))R()}).catch(()=>{});
  document.addEventListener('visibilitychange',()=>{if(!document.hidden)onOpen()})}
 </script>
