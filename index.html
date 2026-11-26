@@ -28,6 +28,10 @@ body{background:#040d1a;color:#e8f6ff;font-family:'Chakra Petch',system-ui,sans-
 @keyframes fl{from{transform:scale(1) rotate(-4deg);filter:drop-shadow(0 0 3px #ff9a3c)}to{transform:scale(1.15) rotate(4deg);filter:drop-shadow(0 0 10px #ffcc33)}}
 .alr{border-color:#ff4d6d!important;box-shadow:0 0 34px #ff4d6d55!important}
 @media (prefers-reduced-motion:reduce){.fl,.hero-box::after{animation:none}.av{transition:none}}
+.scan-img{filter:grayscale(1) brightness(.62) contrast(1.25) sepia(1) hue-rotate(95deg) saturate(1.2)!important}
+.pr-live{background:rgba(255,209,102,.12);border:1px solid rgba(255,209,102,.55);border-radius:10px;padding:3px 6px;box-shadow:0 0 12px rgba(255,209,102,.25)}
+@keyframes scanPulse{0%,100%{opacity:.55;transform:scale(.96)}50%{opacity:.95;transform:scale(1.06)}}
+.hot-pt{transform-box:fill-box;transform-origin:center;animation:scanPulse 2.2s ease-in-out infinite;cursor:pointer}
 </style></head>
 <body onload="boot()">
 <svg width="0" height="0" class="absolute pointer-events-none">
@@ -271,38 +275,30 @@ function vis(){
  const v = $('#iV'), elF = $('#iF'), elB = $('#iB');
  if(!v || !elF || !elB) return;
  const hv = hasV(CK);
- const f = (face === 'video' && !hv) ? 'frente' : face;
+ const f = scanMode ? scanSide : ((face === 'video' && !hv) ? 'frente' : face);
 
  if(f === 'video') {
   elB.style.opacity = '0';
-  // Mantém a foto de frente visível por baixo até o vídeo estar realmente a reproduzir
-  if(v.readyState >= 2 && !v.paused) {
-   v.style.opacity = '1';
-   elF.style.opacity = '0';
-  } else {
-   elF.style.opacity = '1';
-   v.style.opacity = '0';
-   v.play().then(() => {
-    if(face === 'video' && $('#iV') === v) {
-     v.style.opacity = '1';
-     elF.style.opacity = '0';
-    }
-   }).catch(() => {});
+  if(v.readyState >= 2 && !v.paused) { v.style.opacity = '1'; elF.style.opacity = '0'; }
+  else {
+   elF.style.opacity = '1'; v.style.opacity = '0';
+   v.play().then(() => { if(face === 'video' && !scanMode && $('#iV') === v) { v.style.opacity = '1'; elF.style.opacity = '0'; } }).catch(() => {});
   }
  } else {
-  v.pause();
-  v.style.opacity = '0';
+  v.pause(); v.style.opacity = '0';
   elF.style.opacity = (f === 'frente') ? '1' : '0';
   elB.style.opacity = (f === 'costas') ? '1' : '0';
  }
-
+ renderScanner();
  [['btnV','video'],['btnF','frente'],['btnC','costas']].forEach(([id,x])=>{
   const b = $('#'+id);
   if(b) {
-   b.className = (f === x ? 'b' : 'g') + ' flex-1 text-sm tracking-wide';
+   b.className = (!scanMode && f === x || (scanMode && scanSide === x) ? 'b' : 'g') + ' text-xs tracking-wide px-1';
    if(id === 'btnV') b.style.display = hv ? '' : 'none';
   }
  });
+ const bs = $('#btnS');
+ if(bs) bs.className = (scanMode ? 'b' : 'g') + ' text-xs tracking-wide px-1';
 }
 
 function ap(){
@@ -324,7 +320,7 @@ function ap(){
   v.playsInline = true;
   v.poster = asrc('frente', l);
   v.onloadeddata = () => { if(face === 'video' && $('#iV') === v) vis(); };
-  v.onplaying = () => { if(face === 'video' && $('#iV') === v) { v.style.opacity = '1'; if($('#iF')) $('#iF').style.opacity = '0'; } };
+  v.onplaying = () => { if(face === 'video' && !scanMode && $('#iV') === v) { v.style.opacity = '1'; if($('#iF')) $('#iF').style.opacity = '0'; } };
   v.onerror = () => { VBAD.add(k); vis(); };
  }
  
@@ -337,13 +333,112 @@ function ap(){
    if(v.getAttribute('src') !== u) {
     v.src = u;
    }
-   if(face === 'video') {
-    v.play().catch(() => {});
-   }
+   if(face === 'video' && !scanMode) {
+  v.play().catch(() => {});
+}
   });
  }
 }
-const tf=x=>{face=x;vis()};
+const tf=x=>{if(x==='video'){scanMode=false;face='video'}else if(scanMode){scanSide=x;scanSel=''}else{face=x}vis()};
+let scanMode = false, scanSide = 'frente', scanSel = '';
+const MUSC_MAP = [
+  { rx:/supino|flexoes/, p:['peito'], s:['ombros','triceps'] },
+  { rx:/ombro|press|elevacao lateral/, p:['ombros'], s:['triceps'] },
+  { rx:/tricep|pulley/, p:['triceps'], s:[] },
+  { rx:/remada|barras|pull down|tracao/, p:['costas'], s:['biceps','antebracos'] },
+  { rx:/trapezio/, p:['costas','ombros'], s:[] },
+  { rx:/rosca|bicep/, p:['biceps'], s:['antebracos'] },
+  { rx:/agachamento|front squat|leg ext|bulgaro|afundo|lunge|box jump|salto/, p:['quadriceps','gluteos'], s:['isquios'] },
+  { rx:/deadlift|peso morto/, p:['isquios','gluteos','lombar'], s:['costas','quadriceps'] },
+  { rx:/mesa flexora/, p:['isquios'], s:[] },
+  { rx:/hip ?t(h)?rust/, p:['gluteos'], s:['isquios'] },
+  { rx:/panturrilha|saltar corda/, p:['gemeos'], s:[] },
+  { rx:/abdom|prancha/, p:['core'], s:[] },
+  { rx:/corrida|cooper|sprint|series 400|marcha/, p:['quadriceps','isquios','gemeos'], s:['gluteos'] }
+];
+const MUSC_ZONES = {
+  frente: [
+    { id:'ombros', n:'Ombros', pts:[[78,82,12],[122,82,12]] },
+    { id:'peito', n:'Peito', pts:[[88,90,14],[112,90,14]] },
+    { id:'biceps', n:'Bíceps', pts:[[74,104,10],[126,104,10]] },
+    { id:'core', n:'Core / Abdómen', pts:[[100,116,16]] },
+    { id:'quadriceps', n:'Quadríceps', pts:[[84,182,19],[116,182,19]] }
+  ],
+  costas: [
+    { id:'ombros', n:'Ombros (Post.)', pts:[[78,86,12],[122,86,12]] },
+    { id:'costas', n:'Costas / Dorsais', pts:[[86,98,15],[114,98,15]] },
+    { id:'triceps', n:'Tríceps', pts:[[73,104,10],[127,104,10]] },
+    { id:'lombar', n:'Lombar', pts:[[100,122,15]] },
+    { id:'gluteos', n:'Glúteos', pts:[[86,152,16],[114,152,16]] },
+    { id:'isquios', n:'Isquiotibiais', pts:[[84,190,17],[116,190,17]] },
+    { id:'gemeos', n:'Gémeos', pts:[[84,238,13],[116,238,13]] }
+  ]
+};
+
+function getMuscleFatigue(){
+  const now = Date.now(), st = {};
+  D.ss.forEach(s => {
+    const hrs = (now - Date.parse(s.d + 'T12:00')) / 36e5;
+    if(hrs < 0 || hrs > 72) return;
+    const decay = Math.max(0, 1 - hrs / 72);
+    (s.ex || []).forEach(e => {
+      const n = nz(e.n);
+      MUSC_MAP.forEach(m => {
+        if(!m.rx.test(n)) return;
+        const apply = (id, mult) => {
+          const load = decay * mult;
+          if(!st[id] || load > st[id].load) st[id] = { load, hrs: Math.round(hrs), ex: e.n };
+        };
+        m.p.forEach(id => apply(id, 1));
+        m.s.forEach(id => apply(id, 0.55));
+      });
+    });
+  });
+  return st;
+}
+
+function renderScanner(){
+  const svg = $('#scanSvg'), hud = $('#scanHud'), elF = $('#iF'), elB = $('#iB');
+  if(!svg || !hud) return;
+  if(!scanMode){
+    svg.classList.add('hidden'); hud.classList.add('hidden');
+    if(elF) elF.classList.remove('scan-img');
+    if(elB) elB.classList.remove('scan-img');
+    return;
+  }
+  svg.classList.remove('hidden'); hud.classList.remove('hidden');
+  if(elF) elF.classList.toggle('scan-img', true);
+  if(elB) elB.classList.toggle('scan-img', true);
+  const fat = getMuscleFatigue(), zones = MUSC_ZONES[scanSide] || [];
+  let defs = '<defs>', shapes = '';
+  zones.forEach(z => {
+    const info = fat[z.id], rec = info ? Math.max(5, Math.round((1 - info.load) * 100)) : 100;
+    const col = rec < 40 ? '#ff3b5c' : rec < 70 ? '#ff9f1c' : rec < 90 ? '#ffd166' : '#39ff88';
+    const op = rec >= 95 ? '.28' : '.85';
+    defs += `<radialGradient id="g_${z.id}"><stop offset="0%" stop-color="${col}" stop-opacity="${op}"/><stop offset="100%" stop-color="${col}" stop-opacity="0"/></radialGradient>`;
+    z.pts.forEach(([cx, cy, r]) => {
+      shapes += `<circle cx="${cx}" cy="${cy}" r="${r}" fill="url(#g_${z.id})" class="hot-pt" onclick="pickMusc('${z.id}','${z.n}',${rec},'${info ? esc(info.ex) : ''}','${info ? info.hrs : 0}')"/>`;
+    });
+  });
+  defs += '</defs>';
+  svg.innerHTML = defs + shapes;
+  if(!scanSel){
+    hud.innerHTML = `<div class="flex justify-between items-center"><span>🧬 <b>Scanner (${scanSide==='frente'?'Frente':'Costas'})</b> · Toca num músculo</span><span class="text-[10px] text-zinc-400">🔴 Fadiga · 🟢 100%</span></div>`;
+  }
+}
+
+function pickMusc(id, name, rec, ex, hrs){
+  scanSel = id;
+  const hud = $('#scanHud'); if(!hud) return;
+  const col = rec < 40 ? 'text-[#ff4d6d]' : rec < 70 ? 'text-[#ff9f1c]' : rec < 90 ? 'text-[#ffd166]' : 'text-[#39ff88]';
+  hud.innerHTML = `<div class="flex justify-between items-center"><b>${name}</b><b class="${col}">${rec}% recuperado</b></div><div class="text-[10px] text-zinc-400">${ex ? `Último impacto: ${ex} (há ~${hrs}h)` : 'Pronto para carga máxima nas últimas 72h'}</div>`;
+}
+
+function toggleScan(){
+  scanMode = !scanMode; scanSel = '';
+  if(scanMode) scanSide = (face === 'costas') ? 'costas' : 'frente';
+  vis();
+}
 const IMS=()=>{try{localStorage.setItem('gymrpg-midina-img',JSON.stringify(IM));return 1}catch(e){return 0}};
 const fn=l=>RK2.findIndex(x=>x[0]==l)+1;
 function ai(){const st=+$('#xs').value,ty=$('#xv').value,k=st+'|'+ty,u=$('#xu').value.trim(),f=$('#xf').files[0];
@@ -470,8 +565,10 @@ function vH0(){const s=S(),p=D.p,ne=RK2.find(x=>x[0]>s.lv),mx=s.lv>=XM,cur=CXP(s
   <img id="iB" alt="Avatar de costas" class="av absolute inset-0 w-full h-full object-cover z-10" style="opacity:0">
   <video id="iV" class="av absolute inset-0 w-full h-full object-contain z-10" muted loop playsinline autoplay preload="auto" disablepictureinpicture style="opacity:0;transform:scale(2.8) translateY(-0.46%)"></video>
   <canvas id="heroAuraCv" class="absolute inset-0 w-full h-full z-20" style="mix-blend-mode:screen;touch-action:pan-y"></canvas>
+  <svg id="scanSvg" viewBox="0 0 200 300" class="absolute inset-0 w-full h-full z-30 hidden" style="mix-blend-mode:screen"></svg>
+  <div id="scanHud" class="hidden absolute bottom-2 left-2 right-2 z-30 rounded-xl bg-black/80 border border-[#39ff88]/40 px-2.5 py-1.5 text-[11px] text-left backdrop-blur-md"></div>
  </div>
- <div class="flex gap-2 mt-3 max-w-[360px] mx-auto"><button id="btnV" onclick="tf('video')">▶ VÍDEO</button><button id="btnF" onclick="tf('frente')">FRENTE</button><button id="btnC" onclick="tf('costas')">COSTAS</button></div>
+ <div class="grid grid-cols-4 gap-1.5 mt-3 max-w-[360px] mx-auto"><button id="btnV" onclick="tf('video')">▶ VÍDEO</button><button id="btnF" onclick="tf('frente')">FRENTE</button><button id="btnC" onclick="tf('costas')">COSTAS</button><button id="btnS" onclick="toggleScan()">🧬 FADIGA</button></div>
  <div class="mt-4 text-left">
   <div class="flex justify-between gap-2 text-xs"><span class="text-zinc-400">${mx?'Nível máximo':`Nível ${s.lv} → ${s.lv+1}`}</span><span>${mx?'':`${fx(s.xp-cur)} / ${fx(nx-cur)} XP`}</span></div>
   <div class="h-2 bg-white/10 rounded-full overflow-hidden mt-1"><div class="h-full bg-[#38bdf8]" style="width:${pc}%;box-shadow:0 0 12px #38bdf8"></div></div>
@@ -495,6 +592,20 @@ function sp(){
 }
 
 function last(n){const z=nz(n),c=cd(n);for(let j=D.ss.length-1;j>=0;j--){const s=D.ss[j],e=s.ex.find(x=>nz(x.n)==z);if(e){const[w,r]=c?e.s[0]:e.s.reduce((a,c)=>rm(...c)>rm(...a)?c:a),df=(Date.now()-Date.parse(s.d))/864e5;return`${df>=5&&df<=9?'Semana passada':'Última sessão ('+fd(s.d)+')'}: ${c?c[2](w,r):`${fm(w)}kg × ${r} reps`}`}}return''}
+function bestEx1RM(n){
+  if(car(n) || cd(n)===BW) return 0;
+  const z = nz(n); let best = 0;
+  D.ss.forEach(s => (s.ex||[]).forEach(e => {
+    if(nz(e.n)===z) (e.s||[]).forEach(([w,r]) => { if(w>0 && r>=1 && r<=15) best = Math.max(best, rm(w,r)); });
+  }));
+  return best;
+}
+function prTargetTxt(n){
+  const b = bestEx1RM(n); if(!b) return '';
+  const w5 = Math.ceil((b * (1.0278 - 0.0278 * 5)) * 2) / 2 + 0.5;
+  const w8 = Math.ceil((b * (1.0278 - 0.0278 * 8)) * 2) / 2 + 0.5;
+  return `<div class="text-[11px] text-[#ffd166] mt-1">🎯 Alvo PR (1RM ${fm(b)} kg): <b>${fm(w5)} kg × 5</b> ou <b>${fm(w8)} kg × 8</b></div>`;
+}
 function vT(){const dr=draft[day]=draft[day]||{},baseLen=(PL[day]||[]).length;
  let h=`<div class="grid grid-cols-5 gap-1">${DN.map(d=>`<button onclick="day='${d}';R()" class="rounded-lg text-xs whitespace-nowrap ${d.includes('Corrida')?'col-span-5':''} ${d==day?'b':'g'}" style="padding:9px 4px">${d.includes('Corrida')?'🏃 '+d:d}</button>`).join('')}</div>${dlCard()}
  <label class="text-xs text-zinc-400 block">Data do treino<input type="date" class="i mt-1" id="dt" value="${dv||td()}" oninput="dv=this.value;pm0=pmul();upd()"></label>`;
@@ -502,13 +613,20 @@ function vT(){const dr=draft[day]=draft[day]||{},baseLen=(PL[day]||[]).length;
   const h1=cx?c[0]:bw?'Lastro (kg)':'Peso (kg)',h2=cx?c[1]:'Repetições';
   h+=`<div class="c"><div class="flex justify-between gap-2 flex-wrap items-center"><b class="text-[#38bdf8]">${esc(n)}${k?' ★':''}</b><div class="flex items-center gap-2"><span class="text-xs text-zinc-500">${l||'Sem registo anterior'}</span>${isCustom?`<button class="text-xs text-red-300 px-1.5 py-0.5 rounded bg-white/5" onclick="delx(${i-baseLen})" title="Remover exercício extra">✕</button>`:''}</div></div>
   <div class="flex gap-2 mt-2 text-[10px] uppercase tracking-wider text-[#7dd3fc]/70"><span class="w-5 shrink-0">#</span><span class="flex-1 min-w-0">${esc(h1)}</span><span class="flex-1 min-w-0">${esc(h2)}</span></div>
-  ${st.map(([w,r],j)=>`<div class="flex gap-2 mt-1 items-center"><span class="w-5 shrink-0 text-zinc-500 text-sm">${j+1}</span><input class="i flex-1 min-w-0" inputmode="decimal" aria-label="${esc(h1)}, série ${j+1}" placeholder="${cx?esc(c[0]):bw?'0':'kg'}" value="${esc(w)}" oninput="sv(${i},${j},0,this.value)"><input class="i flex-1 min-w-0" inputmode="numeric" aria-label="${esc(h2)}, série ${j+1}" placeholder="${cx?esc(c[1]):'reps'}" value="${esc(r)}" oninput="sv(${i},${j},1,this.value)"></div>`).join('')}
+ ${prTargetTxt(n)}
+  ${st.map(([w,r],j)=>`<div id="sr_${i}_${j}" class="flex gap-2 mt-1 items-center transition-all"><span class="w-5 shrink-0 text-zinc-500 text-sm">${j+1}</span><input class="i flex-1 min-w-0" inputmode="decimal" aria-label="${esc(h1)}, série ${j+1}" placeholder="${cx?esc(c[0]):bw?'0':'kg'}" value="${esc(w)}" oninput="sv(${i},${j},0,this.value)"><input class="i flex-1 min-w-0" inputmode="numeric" aria-label="${esc(h2)}, série ${j+1}" placeholder="${cx?esc(c[1]):'reps'}" value="${esc(r)}" oninput="sv(${i},${j},1,this.value)"><span id="pr_${i}_${j}" class="hidden text-[10px] font-bold text-[#ffd166] shrink-0">🏅 PR</span></div>`).join('')}
   <div class="flex justify-between items-center gap-2 mt-2"><button class="g text-sm shrink-0" onclick="as(${i})">+ Série</button><span id="vo${i}" class="text-xs text-right ${cx?'text-zinc-500':'text-[#7dd3fc]'}">${cx?'Cardio · XP pelas kcal estimadas':''}</span></div></div>`});
  h+=`<div class="c space-y-2"><div class="flex gap-2 items-center"><input id="nx" class="i text-sm" placeholder="Adicionar exercício extra ou clicar para cardio..."><button class="g text-sm shrink-0" onclick="addx()">+ Exercício</button></div>${cPick?`<div class="pt-2 border-t border-white/10"><div class="text-[10px] uppercase tracking-wider text-zinc-400 mb-1.5">Cardio extra só para hoje (desaparece ao guardar):</div><div class="flex flex-wrap gap-1.5">${CARDIO_OPTS.map(x=>`<button class="g text-xs py-1.5 px-3" onclick="addCardio('${x}')">🏃 ${x}</button>`).join('')}</div></div>`:''}</div>`;
  return h+`<div class="c" id="sumv" style="border-color:rgba(56,189,248,.45)"></div><button class="b w-full" onclick="fin()">Guardar treino</button>`}
 function pmul(){const t={d:($('#dt')&&$('#dt').value)||dv||td(),day,ex:[]};D.ss.push(t);let m=1;try{const r=S().sx.get(t);m=r?r.m:1}finally{D.ss.pop()}return m}
 function upd(){const el=$('#sumv');if(!el)return;let T=0,X=0;const kg=+D.p.kg||0,dr=draft[day]||{};
- EX(day).forEach((n,i)=>{const e={n,s:(dr[n]||[]).map(([w,r])=>[pn(w),Math.round(pn(r))]).filter(([,r])=>r>0)},v=volE(e,kg),o=$('#vo'+i),cxp=xpE(e,kg);T+=v;X+=cxp;
+ EX(day).forEach((n,i)=>{const b1rm = bestEx1RM(n);
+ (dr[n]||[]).forEach(([rw,rr], j) => {
+   const wv = pn(rw), rv = Math.round(pn(rr)), isPR = b1rm > 0 && wv > 0 && rv >= 1 && rv <= 15 && rm(wv, rv) > b1rm * 1.001;
+   const row = $(`#sr_${i}_${j}`), tag = $(`#pr_${i}_${j}`);
+   if(row) row.classList.toggle('pr-live', isPR);
+   if(tag) tag.classList.toggle('hidden', !isPR);
+ });const e={n,s:(dr[n]||[]).map(([w,r])=>[pn(w),Math.round(pn(r))]).filter(([,r])=>r>0)},v=volE(e,kg),o=$('#vo'+i),cxp=xpE(e,kg);T+=v;X+=cxp;
   if(o){
    if(!car(n)||v>0){
     const pct=typeof BW_PCT!=='undefined'?BW_PCT[nz(n)]:0;
@@ -1162,6 +1280,11 @@ async function duoClaimBoss(wk) {
     const upRes = await fetch(`${base}/meta/lastBossUpWk.json`);
     const lastUpWk = await upRes.json();
     if (lastUpWk !== wk) {
+     const [rawName] = BOSSES[Math.abs(wk) % BOSSES.length];
+      await fetch(`${base}/trophies/${wk}.json`, {
+        method: 'PUT', headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({ wk, boss: rawName, tier: DUO.bossTier || 1, finisher: DUO.me, d: td() })
+      });
       const nextTier = (DUO.bossTier || 1) + 1;
       await fetch(`${base}/meta/bossTier.json`, {
         method: 'PUT', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(nextTier)
@@ -1199,6 +1322,7 @@ async function duoPoll(force) {
     DUO.stake = (data.meta && data.meta.stake) || '';
     DUO.hist = data.history || {};
     DUO.bossTier = Math.max(1, +(data.meta && data.meta.bossTier) || 1);
+    DUO.trophies = Object.values(data.trophies || {}).sort((a, b) => b.wk - a.wk);
     const remoteClaims = data.claims || {};
     Object.keys(remoteClaims).forEach(k => { DUO.claims[k.replace('_', '|')] = true; });
 
@@ -1511,6 +1635,10 @@ function vDuo(s){
     <button class="g text-xs py-1.5 px-2 truncate" onclick="duoSendTaunt('eyes')">👀 Passei-te!</button>
    </div>
   </div>
+  ${(DUO.trophies && DUO.trophies.length) ? `<div class="space-y-1 pt-2 border-t border-white/10">
+   <div class="text-[10px] uppercase tracking-wider text-[#ffd166] font-bold">🏆 Mural de Troféus (${DUO.trophies.length} Bosses Derrotados)</div>
+   <div class="grid grid-cols-1 gap-1">${DUO.trophies.slice(0,5).map(t=>`<div class="text-xs flex justify-between items-center bg-black/35 border border-[#ffd166]/25 rounded-lg px-2.5 py-1.5"><span><b>${esc(t.boss)}</b> <span class="text-[10px] text-zinc-400">Nv ${t.tier}</span></span><span class="text-[11px] text-[#ffd166]">⚔️ ${esc(t.finisher)} · ${fd(t.d)}</span></div>`).join('')}</div>
+  </div>` : ''}
   ${DUO.feed.length?`<div class="space-y-1 pt-2 border-t border-white/10">
    <div class="text-[10px] uppercase tracking-wider text-zinc-400">🔔 Mural de Atividade em Tempo Real</div>
    ${DUO.feed.slice(0,6).map(e=>`<div class="text-xs flex justify-between items-center gap-2 py-1 border-b border-white/5">
@@ -1536,7 +1664,8 @@ function vDuoCfg() {
   </div>`;
 }
 
-function R(){if(ch){ch.destroy();ch=null}
+function R(){if(ch){ch.destroy();ch=null}if(rch){rch.destroy();rch=null}
+ if(V!=='h'&&scanMode){scanMode=false;scanSel='';face='video'}
  syncBgMode();
  const al=hasNotifAlert();
  $('#nav').innerHTML=[['h','⚔️ Herói'],['n','🔔 Notificações'+(al?' •':'')],['t','🏋️ Treino'],['x','📋 Histórico'],['r','📅 Resumo'],['g','📈 Evolução'],['c','🏆 Conquistas'],['d','💾 Dados']].map(([k,n])=>`<button onclick="V='${k}';R();scrollTo(0,0)" class="whitespace-nowrap px-3 py-2 rounded-lg text-sm ${V==k?'b':'g'}">${n}</button>`).join('');
