@@ -84,7 +84,9 @@ let D={p:{},ss:[],cx:{},u:{}};
 try{D=Object.assign(D,JSON.parse(localStorage.getItem(KEY)||'{}'))}catch(e){}
 D.ss.forEach(s=>{if(LG[s.day])s.day=LG[s.day]});if(!D.p||!D.p.kg)D.p={kg:60,cm:165,age:28};
 const save=()=>{try{const h=dh();if(CL){if(CL.h==='')CL.h=h;else if(h!==CL.h){D.ts=Date.now();CL.h=h}}}catch(e){}saveLocal();cloudPush()};
-let V='h',day='Dia1',face='video',pe=0,rng=0,draft={},dv='',rs=0,ch=null,pm0=1,CK=1;
+let V='h',day='Dia1',face='video',pe=0,rng=0,draft={},dv='',rs=0,ch=null,rch=null,pm0=1,CK=1,tmpEx={},cPick=0;
+const CARDIO_OPTS=['ESTEIRA','BICICLETA','ELÍPTICA','ESCADAS','CORRIDA'];
+const isCardioExtra=n=>['esteira','passadeira','bicicleta','eliptica','escadas','corrida','corrida continua'].includes(nz(n));
 const esc=s=>String(s).replace(/[&<>"']/g,c=>'&#'+c.charCodeAt(0)+';');
 const nz=s=>s.normalize('NFD').replace(/[̀-ͯ]/g,'').toLowerCase().trim();
 const mk=n=>{n=nz(n);return/^supino( reto)?$/.test(n)?'sup':/^agachamento( livre)?$/.test(n)?'agach':/^(deadlift|peso morto|levantamento terra)$/.test(n)?'dead':/(elevacao pelvica|hip ?(thrust|trust))/.test(n)?'hip':''};
@@ -99,12 +101,17 @@ const CD={
  'flexao':BW,
  'crunch abdominal':BW,
  'hiperextensao lombar':BW,
- 'prancha':['—','segundos',(w,r)=>`${r} s`]
+ 'prancha':['—','segundos',(w,r)=>`${r} s`],
+ 'esteira':['km (opcional)','minutos',(w,r)=>w?`${fm(w)} km em ${r} min`:`${r} min`],
+ 'passadeira':['km (opcional)','minutos',(w,r)=>w?`${fm(w)} km em ${r} min`:`${r} min`],
+ 'bicicleta':['km (opcional)','minutos',(w,r)=>w?`${fm(w)} km em ${r} min`:`${r} min`],
+ 'eliptica':['km (opcional)','minutos',(w,r)=>w?`${fm(w)} km em ${r} min`:`${r} min`],
+ 'escadas':['nível (opcional)','minutos',(w,r)=>w?`${r} min (nv ${fm(w)})`:`${r} min`],
 };
 const cd=n=>CD[nz(n)],car=n=>{const c=cd(n);return!!c&&c!==BW};
 const td=()=>new Date(Date.now()-new Date().getTimezoneOffset()*6e4).toISOString().slice(0,10);
 const fd=d=>d.slice(8)+'/'+d.slice(5,7)+'/'+d.slice(2,4);
-const EX=d=>(PL[d]||[]).concat((D.cx&&D.cx[d])||[]);
+const EX=d=>(PL[d]||[]).concat((D.cx&&D.cx[d])||[]).concat((tmpEx&&tmpEx[d])||[]);
 function toast(t){const e=document.createElement('div');e.className='c on text-[#7dd3fc] text-sm';e.textContent=t;$('#t').append(e);setTimeout(()=>e.remove(),4200)}
 function srt(){D.ss.sort((a,b)=>a.d<b.d?-1:a.d>b.d?1:0);const z=new Set;D.ss=D.ss.filter(s=>{const k=JSON.stringify(s);return z.has(k)?0:z.add(k)})}
 
@@ -117,9 +124,34 @@ function volE(e,kg){const c=cd(e.n);if(c&&c!==BW)return 0;const bw=c===BW?(+kg||
 
 const XA=30,XP2=2.8,XM=100,fx=n=>Math.round(n).toLocaleString('pt-PT'),CXP=L=>XA*(L-1)**XP2,LV=x=>Math.min(XM,Math.floor((x/XA)**(1/XP2)+1e-9)+1);
 const LT={sup:1.2,agach:2.0,dead:2.25,hip:2.5};
-const MET={'corrida':[11,(w,r)=>r],'corrida continua':[11,(w,r)=>r],'cardio (20/30min)':[8,(w,r)=>r],'prancha':[4,(w,r)=>r/60]};
-const MUL=n=>{n=nz(n);return/panturrilha|trapezio/.test(n)?.5:/extensora|abdutora|gluteo|pulldown|remada/.test(n)?.75:/lateral|rosca|tricep|bicep/.test(n)?.8:1};
-function xpE(e,kg){const c=cd(e.n);kg=+kg||+D.p.kg||0;if(c&&c!==BW){const m=MET[nz(e.n)];return m?e.s.reduce((a,[w,r])=>a+m[0]*kg*Math.max(0,m[1](+w||0,+r||0))/60/2,0):0}return volE(e,kg)/XP_DIV*MUL(e.n)}
+const MET={'corrida':[11,(w,r)=>r],'saltar corda':[11,(w,r)=>w],'series 400m':[11,(w,r)=>w*r/60],'corrida continua':[11,(w,r)=>r],'cooper':[11,(w,r)=>r],'marcha':[7,(w,r)=>r],'cardio (20/30min)':[8,(w,r)=>r]};
+function cardioMet(n,w,r){
+ const min=+r||0,val=+w||0;
+ if(min<=0)return 0;
+ const spd=val>0?(val*60)/min:0;
+ if(n==='esteira'||n==='passadeira'){
+  if(spd<=0)return 8;
+  return Math.min(16,Math.max(3,spd<=6.5?2+spd*0.55:spd*0.95));
+ }
+ if(n==='bicicleta')return spd<=0?7.5:Math.min(14,Math.max(3.5,spd*0.38));
+ if(n==='eliptica')return spd<=0?8.5:Math.min(14,Math.max(4.5,3+spd*0.7));
+ if(n==='escadas')return val<=0?9:Math.min(15,Math.max(5.5,4.5+val*0.7));
+ return 0;
+}
+const MUL=n=>{n=nz(n);return/panturrilha|trapezio/.test(n)?.5:/mesa|leg ext|pull|abdu|pulley/.test(n)?.6:/lateral|rosca|tricep|bicep/.test(n)?.8:1};
+function xpE(e,kg){
+ const n=nz(e.n),c=cd(e.n);kg=+kg||+D.p.kg||0;
+ const v=volE(e,kg);if(v>0)return v/XP_DIV*MUL(e.n);
+ if(c&&c!==BW){
+  if(['esteira','passadeira','bicicleta','eliptica','escadas'].includes(n)){
+   return e.s.reduce((a,[w,r])=>a+cardioMet(n,w,r)*kg*Math.max(0,+r||0)/60/2,0);
+  }
+  const m=MET[n];
+  return m?e.s.reduce((a,[w,r])=>a+m[0]*kg*Math.max(0,m[1](+w||0,+r||0))/60/2,0):0;
+ }
+ return 0;
+}
+const sd=()=>{try{localStorage.setItem('gymrpg-midina-draft',JSON.stringify({draft,dv,tmpEx}))}catch(e){}};
 
 function S(){
  const b={sup:0,agach:0,dead:0,hip:0},h={sup:{},agach:{},dead:{},hip:{}},W={},M={},Y={},pb={};let vol=0,mv=0,ms=0;const Z={sup:{},agach:{},dead:{},hip:{}},QW={},rc={};
@@ -440,12 +472,25 @@ function vT(){const dr=draft[day]=draft[day]||{},baseLen=(PL[day]||[]).length;
   <div class="flex gap-2 mt-2 text-[10px] uppercase tracking-wider text-[#7dd3fc]/70"><span class="w-5 shrink-0">#</span><span class="flex-1 min-w-0">${esc(h1)}</span><span class="flex-1 min-w-0">${esc(h2)}</span></div>
   ${st.map(([w,r],j)=>`<div class="flex gap-2 mt-1 items-center"><span class="w-5 shrink-0 text-zinc-500 text-sm">${j+1}</span><input class="i flex-1 min-w-0" inputmode="decimal" aria-label="${esc(h1)}, série ${j+1}" placeholder="${cx?esc(c[0]):bw?'0':'kg'}" value="${esc(w)}" oninput="sv(${i},${j},0,this.value)"><input class="i flex-1 min-w-0" inputmode="numeric" aria-label="${esc(h2)}, série ${j+1}" placeholder="${cx?esc(c[1]):'reps'}" value="${esc(r)}" oninput="sv(${i},${j},1,this.value)"></div>`).join('')}
   <div class="flex justify-between items-center gap-2 mt-2"><button class="g text-sm shrink-0" onclick="as(${i})">+ Série</button><span id="vo${i}" class="text-xs text-right ${cx?'text-zinc-500':'text-[#7dd3fc]'}">${cx?'Cardio · XP pelas kcal estimadas':''}</span></div></div>`});
- h+=`<div class="c flex gap-2 items-center"><input id="nx" class="i text-sm" placeholder="Adicionar exercício extra a ${esc(day)}..."><button class="g text-sm shrink-0" onclick="addx()">+ Exercício</button></div>`;
+ h+=`<div class="c space-y-2"><div class="flex gap-2 items-center"><input id="nx" class="i text-sm" placeholder="Adicionar exercício extra ou clicar para cardio..."><button class="g text-sm shrink-0" onclick="addx()">+ Exercício</button></div>${cPick?`<div class="pt-2 border-t border-white/10"><div class="text-[10px] uppercase tracking-wider text-zinc-400 mb-1.5">Cardio extra só para hoje (desaparece ao guardar):</div><div class="flex flex-wrap gap-1.5">${CARDIO_OPTS.map(x=>`<button class="g text-xs py-1.5 px-3" onclick="addCardio('${x}')">🏃 ${x}</button>`).join('')}</div></div>`:''}</div>`;
  return h+`<div class="c" id="sumv" style="border-color:rgba(56,189,248,.45)"></div><button class="b w-full" onclick="fin()">Guardar treino</button>`}
 function pmul(){const t={d:($('#dt')&&$('#dt').value)||dv||td(),day,ex:[]};D.ss.push(t);let m=1;try{const r=S().sx.get(t);m=r?r.m:1}finally{D.ss.pop()}return m}
 function upd(){const el=$('#sumv');if(!el)return;let T=0,X=0;const kg=+D.p.kg||0,dr=draft[day]||{};
- EX(day).forEach((n,i)=>{const e={n,s:(dr[n]||[]).map(([w,r])=>[pn(w),Math.round(pn(r))]).filter(([,r])=>r>0)},v=volE(e),o=$('#vo'+i);T+=v;X+=xpE(e,kg);
-  if(o&&!car(n))o.textContent=`Volume ${fx(v)} kg → ${fx(xpE(e,kg))} XP`+(cd(n)===BW?` · corpo ${fm(kg)} kg + lastro`:'')});
+ EX(day).forEach((n,i)=>{const e={n,s:(dr[n]||[]).map(([w,r])=>[pn(w),Math.round(pn(r))]).filter(([,r])=>r>0)},v=volE(e,kg),o=$('#vo'+i),cxp=xpE(e,kg);T+=v;X+=cxp;
+  if(o){
+   if(!car(n)||v>0){
+    const pct=typeof BW_PCT!=='undefined'?BW_PCT[nz(n)]:0;
+    o.className='text-xs text-right text-[#7dd3fc]';
+    o.textContent=`Volume ${fx(v)} kg → ${fx(cxp)} XP`+(pct?` · ${Math.round(pct*100)}% corpo (${fm(kg*pct)} kg)`:(cd(n)===BW?` · corpo ${fm(kg)} kg + lastro`:''));
+   }else if(cxp>0){
+    const s0=e.s[0],spd=(s0&&s0[0]>0&&s0[1]>0&&['esteira','passadeira','bicicleta','eliptica','corrida','corrida continua'].includes(nz(n)))?` · ${fm((s0[0]*60)/s0[1])} km/h`:'';
+    o.className='text-xs text-right text-[#7dd3fc]';
+    o.textContent=`Cardio · +${fx(cxp)} XP${spd}`;
+   }else{
+    o.className='text-xs text-right text-zinc-500';
+    o.textContent='Cardio · XP pelas kcal estimadas';
+   }
+  }});
  const b=X,x=Math.round(b*pm0),on=pm0>1;
  el.innerHTML=`<div class="text-xs text-zinc-400 mb-2">Resumo · XP = Σ(Peso × Reps) ÷ 10</div><div class="grid grid-cols-3 gap-2 text-center">
   <div><div class="text-[10px] uppercase text-zinc-400">Volume</div><div class="font-bold">${fx(T)} kg</div></div>
@@ -455,13 +500,37 @@ function upd(){const el=$('#sumv');if(!el)return;let T=0,X=0;const kg=+D.p.kg||0
   ${on?'':`<div class="text-[11px] text-zinc-500 mt-1">Sem bónus nesta data: precisas de ${STK_META} dias de treino seguidos, com no máximo ${STK_GAP-1} dias de pausa.</div>`}`}
 const sv=(i,j,c,v)=>{draft[day][EX(day)[i]][j][c]=v;upd();sd()};
 const as=i=>{draft[day][EX(day)[i]].push(['','']);sd();R()};
-function addx(){const el=$('#nx'),n=(el?el.value:'').trim().toUpperCase();if(!n)return toast('Escreve o nome do exercício.');D.cx=D.cx||{};const list=D.cx[day]=D.cx[day]||[];if(!EX(day).some(x=>nz(x)===nz(n))){list.push(n);save();toast('➕ '+n+' adicionado a '+day);R()}}
-function delx(idx){if(!D.cx||!D.cx[day])return;const rem=D.cx[day].splice(idx,1)[0];save();toast('Removido: '+rem);R()}
+function addCardio(name){
+ const n=name.trim().toUpperCase();
+ tmpEx[day]=tmpEx[day]||[];
+ if(!EX(day).some(x=>nz(x)===nz(n))){
+  tmpEx[day].push(n);
+  draft[day]=draft[day]||{};
+  draft[day][n]=draft[day][n]||[['','']];
+  sd();
+  toast('🏃 '+n+' adicionado só para este treino');
+ }
+ cPick=0;R();
+}
+function addx(){
+ const el=$('#nx'),n=(el?el.value:'').trim().toUpperCase();
+ if(!n){cPick=cPick?0:1;R();return;}
+ if(isCardioExtra(n))return addCardio(n);
+ D.cx=D.cx||{};const list=D.cx[day]=D.cx[day]||[];
+ if(!EX(day).some(x=>nz(x)===nz(n))){list.push(n);save();toast('➕ '+n+' adicionado a '+day)}
+ cPick=0;R();
+}
+function delx(idx){
+ const cxList=(D.cx&&D.cx[day])||[];
+ if(idx<cxList.length){const rem=cxList.splice(idx,1)[0];save();toast('Removido: '+rem);R();return;}
+ const ti=idx-cxList.length,tList=(tmpEx&&tmpEx[day])||[];
+ if(ti>=0&&ti<tList.length){const rem=tList.splice(ti,1)[0];if(draft[day])delete draft[day][rem];sd();toast('Removido: '+rem);R();}
+}
 function fin(){const dr=draft[day]||{},ex=[];
  EX(day).forEach(n=>{const s=(dr[n]||[]).map(([w,r])=>[pn(w),Math.round(pn(r))]).filter(([w,r])=>r>0);if(s.length)ex.push({n,s})});
  if(!ex.length)return toast('Introduz pelo menos uma série com reps.');
  const s0=S(),ns={d:$('#dt').value||td(),day,ex,kg:wAt($('#dt').value||td())||+D.p.kg||0};D.ss.push(ns);srt();
- const nw=chk(),s1=S(),g=s1.sx.get(ns);delete draft[day];dv='';sd();
+ const nw=chk(),s1=S(),g=s1.sx.get(ns);delete draft[day];delete tmpEx[day];cPick=0;dv='';sd();
  if(!g){save();R();return toast('Esse treino já estava registado.')}
  if(typeof bgPulse==='function')bgPulse();
  if(typeof heroPulse==='function')heroPulse();
@@ -543,7 +612,6 @@ function vX(){const s=S(),T=dnum(td()),tv=D.ss.reduce((a,x)=>a+x.ex.reduce((b,e)
   ${x.ex.map(e=>`<div class="mt-3 text-sm"><b>${esc(e.n)}</b><div class="text-xs text-zinc-300">${e.s.map(z=>esc(fmt(e,z))).join(' · ')}</div></div>`).join('')}
   <button class="g w-full text-sm mt-4 text-red-300" onclick="hDel(${i},this)">Apagar treino</button></details>`}).join(''):'<div class="c text-sm text-zinc-500">Sem treinos registados neste filtro.</div>')}
 
-const sd=()=>{try{localStorage.setItem('gymrpg-midina-draft',JSON.stringify({draft,dv}))}catch(e){}};
 function bkChk(){if(!D.ss.length)return;if(!D.bk){D.bk=Date.now();save();return}if(Date.now()-D.bk>6048e5)setTimeout(()=>toast('💾 Mais de 7 dias sem backup: Histórico → Descarregar CSV/JSON.'),900)}
 function vMiss(s){const q=s.qw||{f:new Set,p:0,d:0},M=[['3 treinos na semana (Dia1–5)',q.f.size>=3,q.f.size+'/3',150],['1 recorde pessoal',!!q.p,(q.p?1:0)+'/1',150],['Dia5 (Glúteo/Pernas) feito',!!q.d,(q.d?1:0)+'/1',100]];
  return`<div class="c text-sm"><div class="text-xs text-zinc-400">💪 Força relativa <b class="text-[#38bdf8]">${Math.round(s.fs*100)}%</b> · Dedicação <b class="text-[#38bdf8]">${fx(s.xpd)} XP</b> · nível = 85% força + 15% dedicação</div><b class="text-[#38bdf8] block mt-3">🎯 Missões da semana</b>${M.map(([n,ok,p,x])=>`<div class="flex justify-between mt-1 ${ok?'text-[#7dd3fc]':'text-zinc-300'}"><span>${ok?'✅':'⬜'} ${n}</span><span class="text-xs">${p} · +${x} XP</span></div>`).join('')}</div>`}
@@ -865,24 +933,28 @@ save();
   R();
 }
 
-function getMyWeekStats(s) {
-  const T = dnum(td()), wk = wkn(T), w0 = wk * 7 - 3;
-  const wkSS = D.ss.filter(x => { const n = dnum(x.d); return n >= w0 && n <= w0 + 6; });
-  const wkVol = Math.round(wkSS.reduce((a, x) => a + x.ex.reduce((b, e) => b + volE(e, swt(x)), 0), 0));
-  const wkXP = Math.round(wkSS.reduce((a, x) => a + ((s.sx.get(x) || {}).x || 0), 0));
-  let wkKm = 0;
-  wkSS.forEach(x => (x.ex || []).forEach(e => {
-    const n = nz(e.n);
-    if (n === 'corrida' || n === 'corrida continua' || n === 'cooper') {
-      (e.s || []).forEach(([w]) => { wkKm += (n === 'cooper' ? (+w || 0) / 1000 : (+w || 0)); });
-    }
-  }));
-  wkKm = Math.round(wkKm * 10) / 10;
-  const kg = +D.p.kg || 60;
-  const rel = Math.round(((wkVol + wkKm * 150) / kg) * 10) / 10;
-  return { wk, wkTrades: wkSS.length, wkVol, wkXP, wkKm, kg, rel };
+function getMyWeekStats(s){
+ const T=dnum(td()),wk=wkn(T),w0=wk*7-3;
+ const wkSS=D.ss.filter(x=>{const n=dnum(x.d);return n>=w0&&n<=w0+6});
+ const wkVol=Math.round(wkSS.reduce((a,x)=>a+x.ex.reduce((b,e)=>b+volE(e,swt(x)),0),0));
+ const wkXP=Math.round(wkSS.reduce((a,x)=>a+((s.sx.get(x)||{}).x||0),0));
+ let wkKm=0,wkCardioEq=0;
+ wkSS.forEach(x=>(x.ex||[]).forEach(e=>{
+  const n=nz(e.n);
+  if(n==='corrida'||n==='corrida continua'||n==='cooper'||n==='marcha'){
+   (e.s||[]).forEach(([w])=>{wkKm+=(n==='cooper'?(+w||0)/1000:(+w||0))});
+  }else if(['esteira','passadeira','bicicleta','eliptica','escadas'].includes(n)){
+   (e.s||[]).forEach(([w,r])=>{
+    if((n==='esteira'||n==='passadeira')&&+w>0)wkKm+=(+w||0);
+    else wkCardioEq+=xpE({n:e.n,s:[[w,r]]},swt(x))*5;
+   });
+  }
+ }));
+ wkKm=Math.round(wkKm*10)/10;
+ const kg=+D.p.kg||65;
+ const rel=Math.round(((wkVol+wkKm*150+wkCardioEq)/kg)*10)/10;
+ return{wk,wkTrades:wkSS.length,wkVol,wkXP,wkKm,kg,rel};
 }
-
 async function duoPushWorkout(ns, g, s1, customEv) {
   if (!DUO.url) return;
   const st = getMyWeekStats(s1);
@@ -1055,11 +1127,20 @@ function getBetData() {
   return { text: String(DUO.stake), proposedBy: '', status: 'negotiating', lastMsg: {} };
 }
 
-function saveBetData(b) {
+async function saveBetData(b) {
   DUO.stake = JSON.stringify(b);
   localStorage.setItem(DUO_KEY, JSON.stringify(DUO));
-  duoPushWorkout(null, null, S()).then(() => duoPoll(true));
   R();
+  if (DUO.url) {
+    try {
+      await fetch(`${DUO.url}/rooms/${DUO.room}/meta/stake.json`, {
+        method: 'PUT',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify(DUO.stake)
+      });
+    } catch (e) {}
+  }
+  duoPoll(true);
 }
 
 function betPropose() {
@@ -1340,7 +1421,7 @@ function R(){if(ch){ch.destroy();ch=null}
  const al=hasNotifAlert();
  $('#nav').innerHTML=[['h','⚔️ Herói'],['n','🔔 Notificações'+(al?' •':'')],['t','🏋️ Treino'],['x','📋 Histórico'],['r','📅 Resumo'],['g','📈 Evolução'],['c','🏆 Conquistas'],['d','💾 Dados']].map(([k,n])=>`<button onclick="V='${k}';R();scrollTo(0,0)" class="whitespace-nowrap px-3 py-2 rounded-lg text-sm ${V==k?'b':'g'}">${n}</button>`).join('');
  $('#m').innerHTML=({h:vH,n:vN,t:vT,x:vX,r:vR,g:vG,c:vC,d:vD})[V]();if(V=='g')dc();if(V=='h')ap();if(V=='t'){pm0=pmul();upd()}}
-function boot(){initAppBg();initHeroAura();wInit();try{const z=JSON.parse(localStorage.getItem('gymrpg-midina-draft')||'null');if(z){draft=z.draft||{};dv=z.dv||''}}catch(e){}srt();chk();
+function boot(){initAppBg();initHeroAura();wInit();try{const z=JSON.parse(localStorage.getItem('gymrpg-midina-draft')||'null');if(z){draft=z.draft||{};dv=z.dv||'';tmpEx=z.tmpEx||{}}}catch(e){}srt();chk();
  save();R();onOpen();bkChk();rvChk();cloudInit();duoPoll(true);
  IDB.keys().then(ks=>{let n=0;(ks||[]).forEach(k=>{const[a,b]=String(k).split('|');if(b=='video'){VX.add(+a);delete VU[+a];n++}});if(n&&(V=='h'||V=='d'))R()}).catch(()=>{});
  document.addEventListener('visibilitychange',()=>{if(!document.hidden)onOpen()})}
