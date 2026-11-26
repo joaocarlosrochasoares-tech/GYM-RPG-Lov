@@ -996,6 +996,8 @@ const PARTNER_URL      = 'https://joaocarlosrochasoares-tech.github.io/GYM-RPG/'
 function myPushId(){ return nz(DUO.me || ME_DEFAULT); }
 function partnerPushId(){ return myPushId() === 'joao' ? 'midina' : 'joao'; }
 
+let pushInitErr = '', pushReady = false;
+
 function initPush(){
   if(!ONESIGNAL_APP_ID || ONESIGNAL_APP_ID.includes('COLA-AQUI')) return;
   window.OneSignalDeferred = window.OneSignalDeferred || [];
@@ -1007,10 +1009,13 @@ function initPush(){
         serviceWorkerPath: (dir + 'push/onesignal/OneSignalSDKWorker.js').replace(/^\//, ''),
         serviceWorkerParam: { scope: dir + 'push/onesignal/' }
       });
+      pushReady = true;
       if(OneSignal.Notifications.permission){
         await OneSignal.login(myPushId());
       }
-    }catch(e){}
+    }catch(e){
+      pushInitErr = (e && e.message) ? e.message : String(e);
+    }
   });
 }
 
@@ -1018,17 +1023,29 @@ function enablePush(){
   if(!ONESIGNAL_APP_ID || ONESIGNAL_APP_ID.includes('COLA-AQUI')){
     return toast('⚠️ Falta colocar o ONESIGNAL_APP_ID no código.');
   }
+  if(pushInitErr){
+    return toast('⚠️ Erro ao iniciar OneSignal: ' + pushInitErr);
+  }
   toast('⏳ A ligar notificações...');
+  let done = false;
+  const t = setTimeout(()=>{
+    if(!done){
+      toast('⚠️ O OneSignal não respondeu (script bloqueado ou Site URL diferente no painel).');
+    }
+  }, 5000);
+
   window.OneSignalDeferred = window.OneSignalDeferred || [];
   OneSignalDeferred.push(async function(OneSignal){
     try{
       await OneSignal.Notifications.requestPermission();
       await OneSignal.User.PushSubscription.optIn();
       await OneSignal.login(myPushId());
+      done = true; clearTimeout(t);
       toast('🔔 Notificações Push ativadas para ' + (DUO.me || ME_DEFAULT) + '!');
       R();
     }catch(e){
-      toast('⚠️ Erro Push: ' + (e && e.message ? e.message : 'verifica o domínio no OneSignal ou o ecrã principal no iPhone'));
+      done = true; clearTimeout(t);
+      toast('⚠️ Erro Push: ' + ((e && e.message) ? e.message : String(e)));
     }
   });
 }
