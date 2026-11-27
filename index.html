@@ -1813,32 +1813,52 @@ function loadFighterMedia(vidId, imgId, basePath, fallbackPhoto, mirror){
   const vid = document.getElementById(vidId);
   const img = document.getElementById(imgId);
   if(!vid || !img) return;
+
   vid.classList.toggle('mirror', !!mirror);
   img.classList.toggle('mirror', !!mirror);
+
+  // Mostra logo a foto de fallback enquanto verifica o vídeo/foto tug_*
+  vid.style.display = 'none';
+  img.style.display = 'block';
+  img.src = fallbackPhoto || '';
+
   const candidates = [
     { type:'vid', src: basePath + '.mp4' },
     { type:'img', src: basePath + '.webp' },
     { type:'img', src: basePath + '.jpg' },
-    { type:'img', src: basePath + '.png' },
-    { type:'img', src: fallbackPhoto }
+    { type:'img', src: basePath + '.png' }
   ];
+
   let i = 0;
   function tryNext(){
     if(i >= candidates.length) return;
     const c = candidates[i++];
     if(c.type === 'vid'){
-      vid.onerror = tryNext;
-      vid.onloadeddata = () => { img.style.display='none'; vid.style.display='block'; vid.play().catch(()=>{}); };
-      vid.src = c.src; vid.load();
+      const probe = document.createElement('video');
+      probe.muted = true;
+      probe.playsInline = true;
+      probe.onloadeddata = () => {
+        img.style.display = 'none';
+        vid.src = c.src;
+        vid.style.display = 'block';
+        vid.play().catch(()=>{});
+      };
+      probe.onerror = tryNext;
+      probe.src = c.src;
+      probe.load();
     } else {
-      img.onerror = tryNext;
-      img.onload = () => { vid.style.display='none'; img.style.display='block'; };
-      img.src = c.src;
+      const probe = new Image();
+      probe.onload = () => {
+        vid.style.display = 'none';
+        img.src = c.src;
+        img.style.display = 'block';
+      };
+      probe.onerror = tryNext;
+      probe.src = c.src;
     }
   }
   tryNext();
 }
-
 function stopBossCanvas(){
   if(_bossAnimId){ cancelAnimationFrame(_bossAnimId); _bossAnimId = null; }
 }
