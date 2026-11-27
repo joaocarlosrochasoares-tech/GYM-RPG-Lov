@@ -32,6 +32,50 @@ body{background:#040d1a;color:#e8f6ff;font-family:'Chakra Petch',system-ui,sans-
 .pr-live{background:rgba(255,209,102,.12);border:1px solid rgba(255,209,102,.55);border-radius:10px;padding:3px 6px;box-shadow:0 0 12px rgba(255,209,102,.25)}
 @keyframes scanPulse{0%,100%{opacity:.55;transform:scale(.96)}50%{opacity:.95;transform:scale(1.06)}}
 .hot-pt{transform-box:fill-box;transform-origin:center;animation:scanPulse 2.2s ease-in-out infinite;cursor:pointer}
+.ar-wrap{display:flex;flex-direction:column;gap:14px;padding-bottom:24px}
+.ar-boss-stage{position:relative;width:100%;aspect-ratio:4/5;max-height:430px;border-radius:18px;overflow:hidden;background:#000;border:2px solid var(--tier-col,#ef4444);box-shadow:0 0 26px var(--tier-glow,rgba(239,68,68,.35)),inset 0 0 32px rgba(0,0,0,.85);transition:border-color .4s,box-shadow .4s}
+.ar-boss-media{position:absolute;inset:0;width:100%;height:100%;object-fit:contain;object-position:center;background:#000;z-index:1}
+.ar-boss-canvas{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;z-index:2}
+.ar-boss-hud-top{position:absolute;top:0;left:0;right:0;z-index:3;padding:12px 14px 18px;background:linear-gradient(180deg,rgba(5,8,15,.92) 0%,rgba(5,8,15,.65) 65%,transparent 100%)}
+.ar-boss-head{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:8px}
+.ar-boss-name{font-size:16px;font-weight:900;letter-spacing:.3px;color:#fff;text-shadow:0 2px 8px #000}
+.ar-tier-badge{font-size:10px;font-weight:900;text-transform:uppercase;letter-spacing:.8px;padding:4px 9px;border-radius:999px;background:rgba(0,0,0,.65);color:var(--tier-col,#ef4444);border:1px solid var(--tier-col,#ef4444);box-shadow:0 0 12px var(--tier-glow,rgba(239,68,68,.4))}
+.ar-hp-track{position:relative;height:18px;border-radius:999px;overflow:hidden;background:rgba(15,23,42,.88);border:1px solid rgba(255,255,255,.16)}
+.ar-hp-fill{height:100%;border-radius:999px;background:linear-gradient(90deg,#991b1b,#ef4444,#f97316);box-shadow:0 0 14px rgba(239,68,68,.75);transition:width .6s cubic-bezier(.22,1,.36,1)}
+.ar-hp-grid{position:absolute;inset:0;pointer-events:none;background:repeating-linear-gradient(90deg,transparent 0 19%,rgba(0,0,0,.35) 19% 20%)}
+.ar-hp-txt{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:800;color:#fff;text-shadow:0 1px 4px #000}
+.ar-boss-hud-bot{position:absolute;bottom:0;left:0;right:0;z-index:3;padding:18px 14px 12px;background:linear-gradient(0deg,rgba(5,8,15,.94) 0%,rgba(5,8,15,.72) 65%,transparent 100%);display:flex;flex-direction:column;gap:8px}
+.ar-dmg-split{display:flex;justify-content:space-between;font-size:11px;font-weight:700;color:#cbd5e1}
+.ar-chest-btn{width:100%;padding:11px;border:none;border-radius:12px;cursor:pointer;font-size:13px;font-weight:900;color:#052e16;letter-spacing:.4px;background:linear-gradient(90deg,#facc15,#4ade80);box-shadow:0 0 20px rgba(250,204,21,.55);animation:arPulse 1.4s infinite ease-in-out}
+@keyframes arPulse{0%,100%{transform:scale(1)}50%{transform:scale(1.025)}}
+.tug-card{background:rgba(15,23,42,.82);border:1px solid rgba(148,163,184,.18);border-radius:16px;padding:12px}
+.tug-top{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;font-size:12px;font-weight:800}
+.tug-cup{font-size:11px;padding:3px 9px;border-radius:999px;background:rgba(250,204,21,.12);border:1px solid rgba(250,204,21,.35);color:#fde047}
+.tug-arena{position:relative;height:88px;border-radius:14px;overflow:hidden;background:#020617;border:1px solid rgba(255,255,255,.14)}
+.tug-grid{position:absolute;inset:0;pointer-events:none;opacity:.22;background-image:linear-gradient(rgba(255,255,255,.15) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.15) 1px,transparent 1px);background-size:18px 18px}
+.tug-side-l,.tug-side-r{position:absolute;top:0;bottom:0;transition:width .65s cubic-bezier(.22,1,.36,1)}
+.tug-side-l{left:0;background:linear-gradient(90deg,rgba(14,165,233,.22),var(--me-col,#38bdf8))}
+.tug-side-r{right:0;background:linear-gradient(270deg,rgba(16,185,129,.22),var(--rv-col,#39ff88))}
+.tug-clash-wrap{position:absolute;top:0;bottom:0;z-index:4;transform:translateX(-50%);transition:left .65s cubic-bezier(.22,1,.36,1);pointer-events:none}
+.tug-wall{position:absolute;top:0;bottom:0;left:50%;width:4px;transform:translateX(-50%);background:#fff;box-shadow:0 0 12px #fff,0 0 24px #fde047,0 0 36px var(--me-col,#38bdf8);animation:tugWallJitter .18s infinite alternate}
+@keyframes tugWallJitter{0%{opacity:.88;transform:translateX(-50%) scaleY(1)}100%{opacity:1;transform:translateX(-50%) scaleY(1.03)}}
+.tug-fighter{position:absolute;bottom:2px;width:78px;height:78px;mix-blend-mode:screen;object-fit:contain;filter:contrast(1.18) brightness(1.08);animation:tugPush .45s infinite ease-in-out alternate}
+.tug-fighter.left{right:2px}
+.tug-fighter.right{left:2px;animation-name:tugPushR}
+.tug-fighter.mirror{transform:scaleX(-1)}
+@keyframes tugPush{0%{translate:0px 0px}100%{translate:2px -1px}}
+@keyframes tugPushR{0%{translate:0px 0px}100%{translate:-2px -1px}}
+.tug-pcts{position:absolute;top:6px;left:10px;right:10px;z-index:5;display:flex;justify-content:space-between;font-size:11px;font-weight:900;color:#fff;text-shadow:0 1px 5px #000;pointer-events:none}
+.tug-stats{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:10px}
+.tug-stat-box{background:rgba(2,6,23,.55);border:1px solid rgba(148,163,184,.14);border-radius:10px;padding:8px 10px;font-size:11px;color:#cbd5e1}
+.ar-taunts{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.ar-taunt-btn{padding:9px 6px;border-radius:11px;border:1px solid rgba(148,163,184,.2);background:rgba(15,23,42,.85);color:#f8fafc;font-size:12px;font-weight:800;cursor:pointer}
+.ar-subtabs{display:grid;grid-template-columns:1fr 1fr;gap:6px;background:rgba(2,6,23,.6);padding:4px;border-radius:12px}
+.ar-subtab{padding:8px;border:none;border-radius:9px;background:transparent;color:#94a3b8;font-size:12px;font-weight:800;cursor:pointer}
+.ar-subtab.on{background:rgba(56,189,248,.18);color:#fff;border:1px solid rgba(56,189,248,.35)}
+.ar-trophy-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:8px}
+.ar-trophy-item{display:flex;align-items:center;gap:8px;padding:8px;border-radius:12px;background:rgba(15,23,42,.78);border:1px solid rgba(250,204,21,.22)}
+.ar-trophy-thumb{width:42px;height:52px;border-radius:8px;object-fit:cover;background:#000;border:1px solid rgba(255,255,255,.15)}
 </style></head>
 <body onload="boot()">
 <svg width="0" height="0" class="absolute pointer-events-none">
@@ -542,12 +586,10 @@ function vStk(s){const T=dnum(td()),m0=wkn(T)*7-3,set=new Set(D.ss.map(x=>dnum(x
 function hasNotifAlert(){try{const s=S();return !!(dlAct()||dlSug()||(s.gl!=null&&s.gl>=ATR_DIAS-2))}catch(e){return false}}
 function vN(){
  const s=S(),b=dlBanner();
- return`<div class="c flex items-center justify-between"><b class="text-[#38bdf8]">🔔 Centro de Notificações &amp; Estado</b><span class="text-xs text-zinc-400">Arena, Streak e Missões</span></div>`
-  +vDuo(s)
-  +(b||`<div class="c text-xs text-zinc-400">🛌 <b class="text-[#e8f6ff]">Semana de descarga:</b> Sem descarga ativa ou sugerida de momento (recomendada a cada 4 a 6 semanas).</div>`)
+ return`<div class="c flex items-center justify-between"><b class="text-[#38bdf8]">🔔 Notificações &amp; Estado</b><span class="text-xs text-zinc-400">Streak, Descarga e Missões</span></div>`
+  +(b||`<div class="c text-xs text-zinc-400">🛌 <b class="text-[#e8fff1]">Semana de descarga:</b> Sem descarga ativa ou sugerida de momento (recomendada a cada 4 a 6 semanas).</div>`)
   +vStk(s)+vMiss(s);
 }
-
 function getAge(){
  if(!D.p.dob) return D.p.age ? fm(D.p.age)+' anos' : '';
  const b = new Date(D.p.dob+'T12:00'), t = new Date();
@@ -1673,14 +1715,27 @@ function vDuoCfg() {
   </div>`;
 }
 
-function R(){if(ch){ch.destroy();ch=null}if(rch){rch.destroy();rch=null}
- if(V!=='h'&&scanMode){scanMode=false;scanSel='';face='video'}
- syncBgMode();
- const al=hasNotifAlert();
- $('#nav').innerHTML=[['h','⚔️ Herói'],['n','🔔 Notificações'+(al?' •':'')],['t','🏋️ Treino'],['x','📋 Histórico'],['r','📅 Resumo'],['g','📈 Evolução'],['c','🏆 Conquistas'],['d','💾 Dados']].map(([k,n])=>`<button onclick="V='${k}';R();scrollTo(0,0)" class="whitespace-nowrap px-3 py-2 rounded-lg text-sm ${V==k?'b':'g'}">${n}</button>`).join('');
- $('#m').innerHTML=({h:vH,n:vN,t:vT,x:vX,r:vR,g:vG,c:vC,d:vD})[V]();if(V=='g')dc();if(V=='h')ap();if(V=='t'){pm0=pmul();upd()}}
+function R(){
+ if(ch){ch.destroy();ch=null}
+ if(typeof rch!=='undefined'&&rch){rch.destroy();rch=null}
+ if(V!=='h'&&typeof scanMode!=='undefined'&&scanMode){scanMode=false;scanSel='';face='video'}
+ if(V!=='a'&&typeof stopBossCanvas==='function')stopBossCanvas();
+ if(typeof syncBgMode==='function')syncBgMode();
+ const al=typeof hasNotifAlert==='function'?hasNotifAlert():false;
+ const tabs=[['h','⚔️ Herói'],['a','⚔️ Arena'],['n','🔔 Notificações'+(al?' •':'')],['t','🏋️ Treino'],['x','📋 Histórico'],['r','📅 Resumo'],['g','📈 Evolução']];
+ if(typeof vP==='function')tabs.push();
+ tabs.push(['c','🏆 Conquistas'],['d','💾 Dados']);
+ $('#nav').innerHTML=tabs.map(([k,n])=>`<button onclick="V='${k}';R();scrollTo(0,0)" class="whitespace-nowrap px-3 py-2 rounded-lg text-sm ${V==k?'b':'g'}">${n}</button>`).join('');
+ const views={h:vH,a:vArena,n:vN,t:vT,x:vX,r:vR,g:vG,c:vC,d:vD};
+ if(typeof vP==='function')views.p=vP;
+ $('#m').innerHTML=(views[V]||vH)();
+ if(V=='g'&&typeof dc==='function')dc();
+ if(V=='h'){if(typeof ap==='function')ap();if(typeof drawRadar==='function')drawRadar()}
+ if(V=='a'&&typeof mountArena==='function')mountArena();
+ if(V=='t'){if(typeof pmul==='function')pm0=pmul();if(typeof upd==='function')upd()}
+}
 function boot(){initAppBg();initHeroAura();wInit();try{const z=JSON.parse(localStorage.getItem('gymrpg-midina-draft')||'null');if(z){draft=z.draft||{};dv=z.dv||'';tmpEx=z.tmpEx||{}}}catch(e){}srt();chk();
- save();R();onOpen();bkChk();rvChk();cloudInit();duoPoll(true);duoPoll(true);initPush();
+ save();R();onOpen();bkChk();rvChk();cloudInit();duoPoll(true);initPush();
  IDB.keys().then(ks=>{let n=0;(ks||[]).forEach(k=>{const[a,b]=String(k).split('|');if(b=='video'){VX.add(+a);delete VU[+a];n++}});if(n&&(V=='h'||V=='d'))R()}).catch(()=>{});
  document.addEventListener('visibilitychange',()=>{if(!document.hidden)onOpen()})}
 </script>
@@ -1700,5 +1755,270 @@ const avatarStages = {
 };
 /* Deixa o VEMB vazio para o ficheiro não pesar */
 const VEMB = {};
+/* ===== MOTOR DA NOVA ARENA DE CASAL — VERSÃO MIDINA (ESPELHO) ===== */
+const ARENA_CFG = {
+  isMidina: true,
+  joaoBase: 'media/tug_joao',
+  midinaBase: 'media/tug_midina',
+  joaoCol: '#39ff88',
+  midinaCol: '#38bdf8'
+};
+
+const TIER_STYLES = [
+  { name:'BASE',       col:'#ef4444', glow:'rgba(239,68,68,.35)',  sparks:16, speed:0.65 },
+  { name:'FÚRIA',      col:'#f97316', glow:'rgba(249,115,22,.48)', sparks:32, speed:1.10 },
+  { name:'SOBRECARGA', col:'#a855f7', glow:'rgba(168,85,247,.55)', sparks:48, speed:1.45 },
+  { name:'COLOSSO',    col:'#eab308', glow:'rgba(234,179,8,.60)',  sparks:68, speed:1.85 },
+  { name:'APEX',       col:'#f43f5e', glow:'rgba(244,63,94,.75)',  sparks:95, speed:2.35 }
+];
+
+let _bossAnimId = null;
+let _arenaSub = 'trophy';
+
+function getTierStyle(tier){
+  const idx = Math.max(0, Math.min(TIER_STYLES.length - 1, (tier || 1) - 1));
+  return TIER_STYLES[idx];
+}
+
+function loadBossMedia(bossNumber, tier){
+  const vid = document.getElementById('arBossVid');
+  const img = document.getElementById('arBossImg');
+  if(!vid || !img) return;
+  const maxT = Math.min(5, Math.max(1, tier || 1));
+  const candidates = [];
+  for(let t = maxT; t >= 1; t--){
+    candidates.push({ type:'vid', src:`media/boss_${bossNumber}_t${t}.mp4` });
+    candidates.push({ type:'img', src:`media/boss_${bossNumber}_t${t}.webp` });
+    candidates.push({ type:'img', src:`media/boss_${bossNumber}_t${t}.jpg` });
+    candidates.push({ type:'img', src:`media/boss_${bossNumber}_t${t}.png` });
+  }
+  let i = 0;
+  function tryNext(){
+    if(i >= candidates.length) return;
+    const c = candidates[i++];
+    if(c.type === 'vid'){
+      vid.onerror = tryNext;
+      vid.onloadeddata = () => { img.style.display='none'; vid.style.display='block'; vid.play().catch(()=>{}); };
+      vid.src = c.src; vid.load();
+    } else {
+      img.onerror = tryNext;
+      img.onload = () => { vid.style.display='none'; img.style.display='block'; };
+      img.src = c.src;
+    }
+  }
+  tryNext();
+}
+
+function loadFighterMedia(vidId, imgId, basePath, fallbackPhoto, mirror){
+  const vid = document.getElementById(vidId);
+  const img = document.getElementById(imgId);
+  if(!vid || !img) return;
+  vid.classList.toggle('mirror', !!mirror);
+  img.classList.toggle('mirror', !!mirror);
+  const candidates = [
+    { type:'vid', src: basePath + '.mp4' },
+    { type:'img', src: basePath + '.webp' },
+    { type:'img', src: basePath + '.jpg' },
+    { type:'img', src: basePath + '.png' },
+    { type:'img', src: fallbackPhoto }
+  ];
+  let i = 0;
+  function tryNext(){
+    if(i >= candidates.length) return;
+    const c = candidates[i++];
+    if(c.type === 'vid'){
+      vid.onerror = tryNext;
+      vid.onloadeddata = () => { img.style.display='none'; vid.style.display='block'; vid.play().catch(()=>{}); };
+      vid.src = c.src; vid.load();
+    } else {
+      img.onerror = tryNext;
+      img.onload = () => { vid.style.display='none'; img.style.display='block'; };
+      img.src = c.src;
+    }
+  }
+  tryNext();
+}
+
+function stopBossCanvas(){
+  if(_bossAnimId){ cancelAnimationFrame(_bossAnimId); _bossAnimId = null; }
+}
+
+function startBossCanvas(tier){
+  stopBossCanvas();
+  const cv = document.getElementById('arBossCanvas');
+  if(!cv) return;
+  const ctx = cv.getContext('2d');
+  const st = getTierStyle(tier);
+  cv.width = cv.clientWidth || 320;
+  cv.height = cv.clientHeight || 400;
+  const pts = Array.from({ length: st.sparks }, () => ({
+    x: Math.random() * cv.width, y: Math.random() * cv.height,
+    r: 1 + Math.random() * (tier >= 4 ? 2.6 : 1.9),
+    vy: (0.4 + Math.random() * 1.2) * st.speed,
+    vx: (Math.random() - 0.5) * 0.7 * st.speed,
+    a: 0.25 + Math.random() * 0.75
+  }));
+  function tick(){
+    ctx.clearRect(0, 0, cv.width, cv.height);
+    for(const p of pts){
+      p.y -= p.vy; p.x += p.vx;
+      if(p.y < -6){ p.y = cv.height + 6; p.x = Math.random() * cv.width; }
+      if(p.x < -6) p.x = cv.width + 6;
+      if(p.x > cv.width + 6) p.x = -6;
+      ctx.beginPath(); ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
+      ctx.fillStyle = st.col; ctx.globalAlpha = p.a;
+      ctx.shadowBlur = 10; ctx.shadowColor = st.col; ctx.fill();
+    }
+    ctx.globalAlpha = 1;
+    _bossAnimId = requestAnimationFrame(tick);
+  }
+  tick();
+}
+
+function vArena(){
+  if(!DUO.url){
+    return `<div class="c space-y-2" style="border-color:rgba(255,204,51,.45)">
+      <b class="text-[#ffd166]">⚔️ Arena de Casal</b>
+      <p class="text-xs text-zinc-400">Liga a sala do Firebase no separador <b>Dados</b> para ativar o Boss Semanal, o Cabo de Guerra e a Aposta.</p>
+      <button class="b text-xs" onclick="V='d';R()">Ir para Dados</button>
+    </div>`;
+  }
+  const s = S(), my = getMyWeekStats(s), p = DUO.peer;
+  const peerActive = p && p.wk === my.wk;
+  const pRel = peerActive ? (+p.rel || 0) : 0, pXP = peerActive ? (+p.wkXP || 0) : 0;
+  const bossIdx = Math.abs(my.wk) % BOSSES.length;
+  const [rawBossName, baseHP] = BOSSES[bossIdx];
+  const tier = Math.max(1, +DUO.bossTier || 1);
+  const bossMaxHP = Math.round(baseHP * Math.pow(1.25, tier - 1));
+  const dmgTotal = my.wkXP + pXP;
+  const bossHP = Math.max(0, bossMaxHP - dmgTotal);
+  const bossDead = bossHP === 0;
+  const claimed = !!(DUO.claims && DUO.claims[my.wk + '|' + DUO.me]);
+  const dow = new Date().getDay(), weekEnded = (dow === 6 || dow === 0);
+  const totRel = my.rel + pRel;
+  const myPct = totRel > 0 ? Math.min(92, Math.max(8, Math.round((my.rel / totRel) * 100))) : 50;
+  const leader = my.rel > pRel ? DUO.me : pRel > my.rel ? (p ? p.name : 'Parceiro') : 'Empate';
+
+  return `<div class="ar-wrap">
+    <div id="arBossStage" class="ar-boss-stage">
+      <video id="arBossVid" class="ar-boss-media" autoplay loop muted playsinline style="display:none"></video>
+      <img id="arBossImg" class="ar-boss-media" alt="${esc(rawBossName)}">
+      <canvas id="arBossCanvas" class="ar-boss-canvas"></canvas>
+      <div class="ar-boss-hud-top">
+        <div class="ar-boss-head">
+          <div id="arBossName" class="ar-boss-name">${esc(rawBossName)}</div>
+          <div id="arBossTier" class="ar-tier-badge">TIER ${tier}</div>
+        </div>
+        <div class="ar-hp-track">
+          <div id="arHpFill" class="ar-hp-fill" style="width:${Math.min(100,(bossHP/bossMaxHP)*100)}%"></div>
+          <div class="ar-hp-grid"></div>
+          <div id="arHpTxt" class="ar-hp-txt">${fx(bossHP)} / ${fx(bossMaxHP)} HP</div>
+        </div>
+      </div>
+      <div class="ar-boss-hud-bot">
+        <div id="arDmgSplit" class="ar-dmg-split">
+          <span>⚔️ ${esc(DUO.me)}: ${fx(my.wkXP)} dano</span>
+          <span>⚔️ ${esc(p ? p.name : 'Parceiro')}: ${fx(pXP)} dano</span>
+        </div>
+        ${bossDead ? (claimed
+          ? `<div class="text-center text-xs font-bold text-[#39ff88]">✅ Baú desta semana já recolhido (+200 XP)</div>`
+          : `<button id="arChestBtn" class="ar-chest-btn" onclick="duoClaimBoss(${my.wk})">🎁 ABRIR BAÚ DO BOSS (+200 XP)</button>`) : ''}
+      </div>
+    </div>
+
+    <div class="tug-card">
+      <div class="tug-top">
+        <span>⚡ Choque Semanal · ${esc(leader === 'Empate' ? 'Empate' : leader + ' na frente')}</span>
+        <span id="tugCupBadge" class="tug-cup">🏆 ${myPct}% – ${100 - myPct}%</span>
+      </div>
+      <div id="tugArena" class="tug-arena">
+        <div class="tug-grid"></div>
+        <div id="tugLeftBar" class="tug-side-l" style="width:50%"></div>
+        <div id="tugRightBar" class="tug-side-r" style="width:50%"></div>
+        <div id="tugClashWrap" class="tug-clash-wrap" style="left:50%">
+          <video id="tugVidL" class="tug-fighter left" autoplay loop muted playsinline style="display:none"></video>
+          <img id="tugImgL" class="tug-fighter left" style="display:none" alt="">
+          <div class="tug-wall"></div>
+          <video id="tugVidR" class="tug-fighter right" autoplay loop muted playsinline style="display:none"></video>
+          <img id="tugImgR" class="tug-fighter right" style="display:none" alt="">
+        </div>
+        <div class="tug-pcts"><span id="tugPctL">${myPct}%</span><span id="tugPctR">${100 - myPct}%</span></div>
+      </div>
+      <div id="tugStats" class="tug-stats"></div>
+    </div>
+
+    <div class="ar-taunts">
+      <button class="ar-taunt-btn" onclick="duoSendTaunt('fire')">🔥 Bora!</button>
+      <button class="ar-taunt-btn" onclick="duoSendTaunt('crown')">👑 Brilhante!</button>
+      <button class="ar-taunt-btn" onclick="duoSendTaunt('eyes')">👀 Passei-te!</button>
+    </div>
+
+    ${typeof renderWeeklyBetCard === 'function' ? renderWeeklyBetCard(weekEnded, leader, p ? p.name : '') : ''}
+
+    <div class="ar-subtabs">
+      <button id="arSubTrophy" class="ar-subtab ${_arenaSub==='trophy'?'on':''}" onclick="setArenaSub('trophy')">🏆 Mural de Troféus</button>
+      <button id="arSubFeed" class="ar-subtab ${_arenaSub==='feed'?'on':''}" onclick="setArenaSub('feed')">🔔 Atividade</button>
+    </div>
+    <div id="arTrophyPanel" class="ar-trophy-grid" style="display:${_arenaSub==='trophy'?'grid':'none'}">
+      ${(DUO.trophies && DUO.trophies.length)
+        ? DUO.trophies.slice(0,6).map(t=>`<div class="ar-trophy-item"><img class="ar-trophy-thumb" src="media/boss_1_t1.webp" alt=""><div class="text-xs"><b>${esc(t.boss)}</b><div class="text-[10px] text-[#ffd166]">Tier ${t.tier} · ${esc(t.finisher)}</div><div class="text-[10px] text-zinc-400">${fd(t.d)}</div></div></div>`).join('')
+        : `<div class="text-xs text-zinc-500 col-span-2">Ainda sem bosses derrotados.</div>`}
+    </div>
+    <div id="arFeedPanel" class="c space-y-1.5" style="display:${_arenaSub==='feed'?'block':'none'}">
+      ${(DUO.feed && DUO.feed.length)
+        ? DUO.feed.slice(0,8).map(e=>`<div class="text-xs flex justify-between items-center gap-2 py-1 border-b border-white/5"><span class="truncate">${e.type==='taunt'||e.type==='boss'?esc(e.text):`<b>${esc(e.who)}</b> · ${esc(e.day)} (${e.km>0?fm(e.km)+' km':fx(e.vol)+' kg'})`}</span><span class="text-[10px] text-zinc-400 shrink-0">${fd(e.d||td())}</span></div>`).join('')
+        : `<div class="text-xs text-zinc-500">Sem atividade recente.</div>`}
+    </div>
+  </div>`;
+}
+
+function mountArena(){
+  if(!DUO.url) return;
+  const s = S(), my = getMyWeekStats(s), p = DUO.peer;
+  const peerActive = p && p.wk === my.wk;
+  const pRel = peerActive ? (+p.rel || 0) : 0;
+  const bossIdx = Math.abs(my.wk) % BOSSES.length;
+  const tier = Math.max(1, +DUO.bossTier || 1);
+  const st = getTierStyle(tier);
+  const stage = document.getElementById('arBossStage');
+  if(stage){
+    stage.style.setProperty('--tier-col', st.col);
+    stage.style.setProperty('--tier-glow', st.glow);
+    document.getElementById('arBossTier').textContent = `TIER ${tier} · ${st.name}`;
+  }
+  loadBossMedia(bossIdx + 1, tier);
+  startBossCanvas(tier);
+
+  const arena = document.getElementById('tugArena');
+  if(arena){
+    const meCol = ARENA_CFG.midinaCol;
+    const rvCol = ARENA_CFG.joaoCol;
+    arena.style.setProperty('--me-col', meCol);
+    arena.style.setProperty('--rv-col', rvCol);
+    const totRel = my.rel + pRel;
+    const pct = totRel > 0 ? Math.min(92, Math.max(8, Math.round((my.rel / totRel) * 100))) : 50;
+    const visualPos = Math.max(20, Math.min(80, pct));
+    document.getElementById('tugLeftBar').style.width = visualPos + '%';
+    document.getElementById('tugRightBar').style.width = (100 - visualPos) + '%';
+    document.getElementById('tugClashWrap').style.left = visualPos + '%';
+
+    const fbL = asrc('frente', s.lv);
+    const fbR = asrc('frente', p ? p.lv : 1);
+    loadFighterMedia('tugVidL', 'tugImgL', ARENA_CFG.midinaBase, fbL, true);
+    loadFighterMedia('tugVidR', 'tugImgR', ARENA_CFG.joaoBase, fbR, true);
+
+    document.getElementById('tugStats').innerHTML = `
+      <div class="tug-stat-box"><strong style="color:${meCol}">${esc(DUO.me)} (Tu)</strong><br>Nv ${s.lv} · 🔥 ${s.stk}d · ${my.wkTrades} treinos</div>
+      <div class="tug-stat-box" style="text-align:right"><strong style="color:${rvCol}">${esc(p ? p.name : 'Parceiro')}</strong><br>Nv ${p ? p.lv : '—'} · 🔥 ${p ? p.stk : 0}d · ${peerActive ? (p.wkTrades||0) : 0} treinos</div>`;
+  }
+}
+
+function setArenaSub(mode){
+  _arenaSub = mode;
+  document.getElementById('arSubTrophy').classList.toggle('on', mode === 'trophy');
+  document.getElementById('arSubFeed').classList.toggle('on', mode === 'feed');
+  document.getElementById('arTrophyPanel').style.display = mode === 'trophy' ? 'grid' : 'none';
+  document.getElementById('arFeedPanel').style.display = mode === 'feed' ? 'block' : 'none';
+}
 </script>
 </body></html>
