@@ -56,12 +56,14 @@ body{background:#040d1a;color:#e8f6ff;font-family:'Chakra Petch',system-ui,sans-
 .tug-side-l,.tug-side-r{position:absolute;top:0;bottom:0;transition:width .65s cubic-bezier(.22,1,.36,1)}
 .tug-side-l{left:0;background:linear-gradient(180deg,rgba(4,10,18,.92) 0%,rgba(14,165,233,.14) 85%,rgba(56,189,248,.55) 100%);border-bottom:4px solid var(--me-col,#38bdf8)}
 .tug-side-r{right:0;background:linear-gradient(180deg,rgba(4,12,8,.92) 0%,rgba(16,185,129,.14) 85%,rgba(57,255,136,.55) 100%);border-bottom:4px solid var(--rv-col,#39ff88)}
-.tug-clash-wrap{position:absolute;top:0;bottom:0;z-index:4;transform:translateX(-50%);transition:left .65s cubic-bezier(.22,1,.36,1);pointer-events:none}
-.tug-wall{position:absolute;top:0;bottom:0;left:50%;width:4px;transform:translateX(-50%);background:#fff;box-shadow:0 0 12px #fff,0 0 24px #fde047,0 0 36px var(--me-col,#38bdf8);animation:tugWallJitter .18s infinite alternate}
-@keyframes tugWallJitter{0%{opacity:.88;transform:translateX(-50%) scaleY(1)}100%{opacity:1;transform:translateX(-50%) scaleY(1.03)}}
-.tug-fighter{position:absolute!important;bottom:3px!important;width:125px!important;height:82px!important;max-width:none!important;mix-blend-mode:lighten!important;object-fit:contain;filter:none;animation:tugPush .45s infinite ease-in-out alternate}.tug-fighter.left{right:2px}
-.tug-fighter.right{left:2px;animation-name:tugPushR}
+.tug-clash-wrap{position:absolute!important;top:0!important;bottom:0!important;width:4px!important;margin-left:-2px!important;transition:left .65s cubic-bezier(.22,1,.36,1);pointer-events:none}
+.tug-wall{position:absolute!important;top:0!important;bottom:0!important;left:0!important;width:4px!important;background:#fff;box-shadow:0 0 12px #fff,0 0 24px #fde047,0 0 36px var(--me-col,#39ff88);animation:tugWallJitter .18s infinite alternate}
+.tug-fighter{position:absolute!important;bottom:3px!important;width:125px!important;height:82px!important;max-width:none!important;mix-blend-mode:lighten!important;object-fit:contain;filter:none;animation:tugPush .45s infinite ease-in-out alternate}
+.tug-fighter.left{right:-4px!important;left:auto!important;object-position:right bottom;transform-origin:right bottom}
+.tug-fighter.right{left:-45px!important;right:auto!important;object-position:left bottom;transform-origin:left bottom;animation-name:tugPushR}
 .tug-fighter.mirror{transform:scaleX(-1)}
+video.tug-fighter{transform:scale(1.26)}
+video.tug-fighter.mirror{transform:scaleX(-1) scale(1.32)}
 @keyframes tugPush{0%{translate:0px 0px}100%{translate:2px -1px}}
 @keyframes tugPushR{0%{translate:0px 0px}100%{translate:-2px -1px}}
 .tug-pcts{position:absolute;top:6px;left:10px;right:10px;z-index:5;display:flex;justify-content:space-between;font-size:11px;font-weight:900;color:#fff;text-shadow:0 1px 5px #000;pointer-events:none}
