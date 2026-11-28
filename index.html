@@ -1404,8 +1404,8 @@ async function duoPoll(force) {
           new Notification('GYM RPG · Arena de Casal', { body: msg, icon: 'icon-192.png' });
         }
       }
-      if (V === 'n' && !typingBet) R();
-    } else if (((DUO.peer && DUO.peer.ts !== prevPeerTs) || DUO.stake !== prevStake) && V === 'n' && !typingBet) {
+      if ((V === 'a' || V === 'n') && !typingBet) R();
+    } else if (((DUO.peer && DUO.peer.ts !== prevPeerTs) || DUO.stake !== prevStake) && (V === 'a' || V === 'n') && !typingBet) {
       R();
     }
   } catch (e) {}
@@ -1948,9 +1948,12 @@ function vArena(){
     </div>
 
     <div class="tug-card">
-      <div class="tug-top">
+     <div class="tug-top">
         <span>⚡ Choque Semanal · ${esc(leader === 'Empate' ? 'Empate' : leader + ' na frente')}</span>
-        <span id="tugCupBadge" class="tug-cup">🏆 ${myPct}% – ${100 - myPct}%</span>
+        <div class="flex items-center gap-1.5">
+          <span id="tugCupBadge" class="tug-cup">🏆 ${myPct}% – ${100 - myPct}%</span>
+          <button class="g text-[11px] py-0.5 px-2" onclick="duoPushWorkout(null,null,S()).then(()=>duoPoll(true)).then(()=>R())">🔄</button>
+        </div>
       </div>
       <div id="tugArena" class="tug-arena">
         <div class="tug-grid"></div>
